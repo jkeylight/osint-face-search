@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Face Search</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-icon">&#128269;</span>
+                <h1>OSINT Face Search</h1>
+            </div>
+            <div class="header-stats" id="stats">
+                <span class="stat-item">Images: <span id="stat-images">0</span></span>
+                <span class="stat-item">Searches: <span id="stat-searches">0</span></span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section" id="upload-section">
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">&#128247;</div>
+                    <p class="upload-text">Drag & drop an image here</p>
+                    <p class="upload-subtext">or click to browse</p>
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                </div>
+                
+                <!-- Preview -->
+                <div class="preview-container" id="preview-container" style="display: none;">
+                    <img id="preview-image" src="" alt="Preview">
+                    <div class="preview-info">
+                        <span id="preview-filename"></span>
+                        <span id="preview-size"></span>
+                    </div>
+                    <div class="preview-actions">
+                        <button class="btn btn-primary" id="search-btn">
+                            <span class="btn-icon">&#128269;</span> Search
+                        </button>
+                        <button class="btn btn-secondary" id="clear-btn">
+                            <span class="btn-icon">&#10006;</span> Clear
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading State -->
+            <section class="loading-section" id="loading-section" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p class="loading-text" id="loading-text">Searching across 15 engines...</p>
+                <p class="loading-subtext" id="loading-subtext">This may take 30-60 seconds</p>
+                <div class="loading-progress">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="loading-engines" id="loading-engines">
+                    <div class="engine-group">
+                        <span class="engine-group-label">Search Engines</span>
+                        <span class="engine-status" data-engine="google_lens">Google Lens</span>
+                        <span class="engine-status" data-engine="yandex">Yandex</span>
+                        <span class="engine-status" data-engine="bing">Bing</span>
+                        <span class="engine-status" data-engine="tineye">TinEye</span>
+                        <span class="engine-status" data-engine="duckduckgo">DuckDuckGo</span>
+                        <span class="engine-status" data-engine="baidu">Baidu</span>
+                        <span class="engine-status" data-engine="qwant">Qwant</span>
+                        <span class="engine-status" data-engine="saucenao">SauceNAO</span>
+                    </div>
+                    <div class="engine-group">
+                        <span class="engine-group-label">Social Media</span>
+                        <span class="engine-status" data-engine="twitter">Twitter/X</span>
+                        <span class="engine-status" data-engine="instagram">Instagram</span>
+                        <span class="engine-status" data-engine="reddit">Reddit</span>
+                        <span class="engine-status" data-engine="facebook">Facebook</span>
+                        <span class="engine-status" data-engine="linkedin">LinkedIn</span>
+                        <span class="engine-status" data-engine="tiktok">TikTok</span>
+                        <span class="engine-status" data-engine="snapchat">Snapchat</span>
+                        <span class="engine-status" data-engine="threads">Threads</span>
+                    </div>
+                    <div class="engine-group">
+                        <span class="engine-group-label">Forums</span>
+                        <span class="engine-status" data-engine="4chan">4chan</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="results-section" style="display: none;">
+                <div class="results-header">
+                    <div class="results-title-row">
+                        <button class="btn btn-secondary btn-small" id="back-btn">
+                            <span class="btn-icon">&#8592;</span> New Search
+                        </button>
+                        <h2>Search Results</h2>
+                    </div>
+                    <div class="results-meta">
+                        <span id="results-count">0 matches found</span>
+                        <span id="results-quality">Quality: --</span>
+                        <span id="results-threshold">Threshold: --</span>
+                    </div>
+                    <div class="results-actions">
+                        <button class="btn btn-small" id="export-btn">Export</button>
+                        <select id="sort-select">
+                            <option value="similarity">Sort by Similarity</option>
+                            <option value="engine">Sort by Engine</option>
+                            <option value="date">Sort by Date</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Results Grid -->
+                <div class="results-grid" id="results-grid"></div>
+            </section>
+
+            <!-- Comparison Modal -->
+            <div class="modal" id="comparison-modal" style="display: none;">
+                <div class="modal-content">
+                    <button class="modal-close" id="modal-close">&times;</button>
+                    <div class="comparison-view">
+                        <div class="comparison-side">
+                            <h3>Query Face</h3>
+                            <img id="comp-query" src="" alt="Query">
+                        </div>
+                        <div class="comparison-center">
+                            <div class="similarity-badge" id="comp-similarity">0%</div>
+                            <div class="similarity-bar">
+                                <div class="similarity-fill" id="comp-fill"></div>
+                            </div>
+                        </div>
+                        <div class="comparison-side">
+                            <h3>Match</h3>
+                            <img id="comp-result" src="" alt="Match">
+                        </div>
+                    </div>
+                    <div class="comparison-details">
+                        <p><strong>Source:</strong> <a id="comp-source" href="" target="_blank"></a></p>
+                        <p><strong>Engine:</strong> <span id="comp-engine"></span></p>
+                        <p><strong>Region Matched:</strong> <span id="comp-region"></span></p>
+                    </div>
+                    <div class="comparison-feedback">
+                        <button class="btn btn-success" id="feedback-correct">&#10004; Correct Match</button>
+                        <button class="btn btn-danger" id="feedback-incorrect">&#10008; False Positive</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>OSINT Face Search v1.0 | All processing happens locally | No data sent to external servers</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
