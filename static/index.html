@@ -1,159 +1,321 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Face Search</title>
-    <link rel="stylesheet" href="/static/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSINT Face Search</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo">
-                <span class="logo-icon">&#128269;</span>
-                <h1>OSINT Face Search</h1>
-            </div>
-            <div class="header-stats" id="stats">
-                <span class="stat-item">Images: <span id="stat-images">0</span></span>
-                <span class="stat-item">Searches: <span id="stat-searches">0</span></span>
-            </div>
-        </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Upload Section -->
-            <section class="upload-section" id="upload-section">
-                <div class="upload-area" id="upload-area">
-                    <div class="upload-icon">&#128247;</div>
-                    <p class="upload-text">Drag & drop an image here</p>
-                    <p class="upload-subtext">or click to browse</p>
-                    <input type="file" id="file-input" accept="image/*" hidden>
-                </div>
-                
-                <!-- Preview -->
-                <div class="preview-container" id="preview-container" style="display: none;">
-                    <img id="preview-image" src="" alt="Preview">
-                    <div class="preview-info">
-                        <span id="preview-filename"></span>
-                        <span id="preview-size"></span>
-                    </div>
-                    <div class="preview-actions">
-                        <button class="btn btn-primary" id="search-btn">
-                            <span class="btn-icon">&#128269;</span> Search
-                        </button>
-                        <button class="btn btn-secondary" id="clear-btn">
-                            <span class="btn-icon">&#10006;</span> Clear
-                        </button>
-                    </div>
-                </div>
-            </section>
+<!-- ══════════════════════════ HEADER ══════════════════════════ -->
+<header class="topbar">
+  <div class="brand" data-nav="search">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M9 11h4M11 9v4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">OSINT Face Search</span>
+      <span class="brand-sub">reverse image intelligence · local verification</span>
+    </div>
+  </div>
 
-            <!-- Loading State -->
-            <section class="loading-section" id="loading-section" style="display: none;">
-                <div class="loading-spinner"></div>
-                <p class="loading-text" id="loading-text">Searching across 15 engines...</p>
-                <p class="loading-subtext" id="loading-subtext">This may take 30-60 seconds</p>
-                <div class="loading-progress">
-                    <div class="progress-bar" id="progress-bar"></div>
-                </div>
-                <div class="loading-engines" id="loading-engines">
-                    <div class="engine-group">
-                        <span class="engine-group-label">Search Engines</span>
-                        <span class="engine-status" data-engine="google_lens">Google Lens</span>
-                        <span class="engine-status" data-engine="yandex">Yandex</span>
-                        <span class="engine-status" data-engine="bing">Bing</span>
-                        <span class="engine-status" data-engine="tineye">TinEye</span>
-                        <span class="engine-status" data-engine="duckduckgo">DuckDuckGo</span>
-                        <span class="engine-status" data-engine="baidu">Baidu</span>
-                        <span class="engine-status" data-engine="qwant">Qwant</span>
-                        <span class="engine-status" data-engine="saucenao">SauceNAO</span>
-                    </div>
-                    <div class="engine-group">
-                        <span class="engine-group-label">Social Media</span>
-                        <span class="engine-status" data-engine="twitter">Twitter/X</span>
-                        <span class="engine-status" data-engine="instagram">Instagram</span>
-                        <span class="engine-status" data-engine="reddit">Reddit</span>
-                        <span class="engine-status" data-engine="facebook">Facebook</span>
-                        <span class="engine-status" data-engine="linkedin">LinkedIn</span>
-                        <span class="engine-status" data-engine="tiktok">TikTok</span>
-                        <span class="engine-status" data-engine="snapchat">Snapchat</span>
-                        <span class="engine-status" data-engine="threads">Threads</span>
-                    </div>
-                    <div class="engine-group">
-                        <span class="engine-group-label">Forums</span>
-                        <span class="engine-status" data-engine="4chan">4chan</span>
-                    </div>
-                </div>
-            </section>
+  <nav class="tabs" id="main-tabs">
+    <button class="tab active" data-nav="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      Search
+    </button>
+    <button class="tab" data-nav="job" id="tab-job" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M3 12h18M3 17h12"/></svg>
+      Results
+    </button>
+    <button class="tab" data-nav="gallery">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 17l-5-5-4 4-2-2-4 4"/></svg>
+      Gallery <span class="pill" id="gallery-count" hidden>0</span>
+    </button>
+    <button class="tab" data-nav="verify">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><circle cx="12" cy="12" r="3"/></svg>
+      Verify 1:1
+    </button>
+    <button class="tab" data-nav="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      History
+    </button>
+    <button class="tab" data-nav="system">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
+      System
+    </button>
+  </nav>
 
-            <!-- Results Section -->
-            <section class="results-section" id="results-section" style="display: none;">
-                <div class="results-header">
-                    <div class="results-title-row">
-                        <button class="btn btn-secondary btn-small" id="back-btn">
-                            <span class="btn-icon">&#8592;</span> New Search
-                        </button>
-                        <h2>Search Results</h2>
-                    </div>
-                    <div class="results-meta">
-                        <span id="results-count">0 matches found</span>
-                        <span id="results-quality">Quality: --</span>
-                        <span id="results-threshold">Threshold: --</span>
-                    </div>
-                    <div class="results-actions">
-                        <button class="btn btn-small" id="export-btn">Export</button>
-                        <select id="sort-select">
-                            <option value="similarity">Sort by Similarity</option>
-                            <option value="engine">Sort by Engine</option>
-                            <option value="date">Sort by Date</option>
-                        </select>
-                    </div>
-                </div>
+  <div class="topbar-right">
+    <div class="backend-pill" id="backend-pill" title="Face recognition backend">
+      <span class="dot" id="backend-dot"></span><span id="backend-name">…</span>
+    </div>
+  </div>
+</header>
 
-                <!-- Results Grid -->
-                <div class="results-grid" id="results-grid"></div>
-            </section>
+<!-- ══════════════════════════ MAIN ══════════════════════════ -->
+<main id="view-root">
 
-            <!-- Comparison Modal -->
-            <div class="modal" id="comparison-modal" style="display: none;">
-                <div class="modal-content">
-                    <button class="modal-close" id="modal-close">&times;</button>
-                    <div class="comparison-view">
-                        <div class="comparison-side">
-                            <h3>Query Face</h3>
-                            <img id="comp-query" src="" alt="Query">
-                        </div>
-                        <div class="comparison-center">
-                            <div class="similarity-badge" id="comp-similarity">0%</div>
-                            <div class="similarity-bar">
-                                <div class="similarity-fill" id="comp-fill"></div>
-                            </div>
-                        </div>
-                        <div class="comparison-side">
-                            <h3>Match</h3>
-                            <img id="comp-result" src="" alt="Match">
-                        </div>
-                    </div>
-                    <div class="comparison-details">
-                        <p><strong>Source:</strong> <a id="comp-source" href="" target="_blank"></a></p>
-                        <p><strong>Engine:</strong> <span id="comp-engine"></span></p>
-                        <p><strong>Region Matched:</strong> <span id="comp-region"></span></p>
-                    </div>
-                    <div class="comparison-feedback">
-                        <button class="btn btn-success" id="feedback-correct">&#10004; Correct Match</button>
-                        <button class="btn btn-danger" id="feedback-incorrect">&#10008; False Positive</button>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Footer -->
-        <footer class="app-footer">
-            <p>OSINT Face Search v1.0 | All processing happens locally | No data sent to external servers</p>
-        </footer>
+  <!-- ─────────── SEARCH VIEW ─────────── -->
+  <section class="view" id="view-search">
+    <div class="hero">
+      <h1>Face search &amp; verification workbench</h1>
+      <p>Upload a face photo — the tool queries reverse image engines, downloads candidates,
+         and verifies every hit <em>locally</em> with on-device face recognition. Nothing about
+         your query image leaves the machine except the crops sent to the engines you enable.</p>
     </div>
 
-    <script src="/static/app.js"></script>
+    <div class="search-layout">
+      <!-- upload column -->
+      <div class="panel upload-panel">
+        <div class="panel-head"><h2>Query image</h2><span class="panel-hint">JPG · PNG · WEBP · ≤15 MB</span></div>
+
+        <div class="dropzone" id="dropzone" tabindex="0">
+          <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" hidden>
+          <div class="dz-idle" id="dz-idle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <p class="dz-title">Drop a face photo here</p>
+            <p class="dz-sub">or <span class="link">browse files</span> · paste with Ctrl+V</p>
+          </div>
+          <div class="dz-preview" id="dz-preview" hidden>
+            <div class="preview-wrap"><img id="preview-img" alt="query preview"></div>
+            <div class="preview-meta">
+              <div class="pm-row"><span id="pm-faces" class="pm-badge">—</span><span id="pm-quality"></span></div>
+              <div class="pm-row"><span id="pm-dims" class="pm-dim"></span><span id="pm-file"></span></div>
+            </div>
+            <div class="preview-actions">
+              <button class="btn btn-primary" id="btn-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Run search
+              </button>
+              <button class="btn btn-ghost" id="btn-clear">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="warn-note" id="no-face-note" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <span>No face detected — search will run without local verification.</span>
+        </div>
+        <div class="warn-note warn" id="face-err-note" hidden></div>
+
+        <div class="demo-strip">
+          <span class="demo-label">No photo handy?</span>
+          <button class="btn btn-ghost btn-sm" id="btn-demo" title="Runs the full pipeline on bundled synthetic demo faces">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
+            Run demo case
+          </button>
+        </div>
+      </div>
+
+      <!-- engines column -->
+      <div class="panel engines-panel">
+        <div class="panel-head">
+          <h2>Engines</h2>
+          <div class="engines-tools">
+            <button class="btn btn-ghost btn-xs" id="eng-all">All</button>
+            <button class="btn btn-ghost btn-xs" id="eng-none">None</button>
+          </div>
+        </div>
+        <div class="engine-grid" id="engine-grid">
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </div>
+        <div class="engine-note" id="engine-note"></div>
+        <label class="check-row">
+          <input type="checkbox" id="opt-gallery" checked>
+          <span>Also match against local <b>Gallery</b> identities</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- quick stats -->
+    <div class="stat-strip" id="stat-strip">
+      <div class="stat"><span class="stat-num" id="st-jobs">–</span><span class="stat-lab">searches</span></div>
+      <div class="stat"><span class="stat-num" id="st-results">–</span><span class="stat-lab">results analyzed</span></div>
+      <div class="stat"><span class="stat-num" id="st-matches">–</span><span class="stat-lab">face matches</span></div>
+      <div class="stat"><span class="stat-num" id="st-gallery">–</span><span class="stat-lab">gallery identities</span></div>
+    </div>
+  </section>
+
+  <!-- ─────────── JOB / RESULTS VIEW ─────────── -->
+  <section class="view" id="view-job" hidden>
+    <div class="job-head">
+      <div class="job-query">
+        <img id="job-query-thumb" alt="query">
+        <div class="job-meta">
+          <h2 id="job-title">Search</h2>
+          <div class="job-meta-rows">
+            <span id="job-when"></span>
+            <span id="job-backend"></span>
+            <span id="job-faces"></span>
+          </div>
+          <div class="job-actions">
+            <button class="btn btn-ghost btn-sm" id="btn-new-search">← New search</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cancel-job" hidden>Cancel</button>
+            <div class="export-menu">
+              <button class="btn btn-ghost btn-sm" id="btn-export">Export
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="export-drop" id="export-drop" hidden>
+                <a data-fmt="json">JSON</a>
+                <a data-fmt="csv">CSV</a>
+                <a data-fmt="html">HTML report</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- live pipeline -->
+      <div class="pipeline" id="pipeline-panel">
+        <div class="pipeline-top">
+          <div class="phase-track" id="phase-track">
+            <div class="phase" data-phase="engines"><span class="ph-dot"></span>engines</div>
+            <div class="phase" data-phase="download"><span class="ph-dot"></span>download</div>
+            <div class="phase" data-phase="verify"><span class="ph-dot"></span>verify</div>
+            <div class="phase" data-phase="gallery"><span class="ph-dot"></span>gallery</div>
+            <div class="phase" data-phase="rank"><span class="ph-dot"></span>rank</div>
+          </div>
+          <div class="counters" id="pipeline-counters"></div>
+        </div>
+        <div class="engine-status-grid" id="engine-status-grid"></div>
+        <div class="pipeline-log" id="pipeline-log" hidden></div>
+      </div>
+    </div>
+
+    <!-- results controls -->
+    <div class="results-controls">
+      <div class="rc-left">
+        <div class="seg" id="verdict-filter">
+          <button class="seg-btn active" data-v="all">All <span class="seg-count" id="cnt-all">0</span></button>
+          <button class="seg-btn" data-v="strong">Strong <span class="seg-count" id="cnt-strong">0</span></button>
+          <button class="seg-btn" data-v="possible">Possible <span class="seg-count" id="cnt-possible">0</span></button>
+          <button class="seg-btn" data-v="faces">Has face <span class="seg-count" id="cnt-faces">0</span></button>
+        </div>
+      </div>
+      <div class="rc-right">
+        <div class="minconf">
+          <span class="minconf-label">min confidence <b id="minconf-val">0</b>%</span>
+          <input type="range" id="minconf" min="0" max="100" value="0">
+        </div>
+        <select id="sort-select" class="select">
+          <option value="rank">Sort: relevance</option>
+          <option value="similarity">Sort: similarity</option>
+          <option value="engines">Sort: engine consensus</option>
+          <option value="domain">Sort: domain</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="results-empty" id="results-empty" hidden>
+      <div class="re-icon">🎯</div>
+      <p id="results-empty-text">No results yet.</p>
+    </div>
+    <div class="results-grid" id="results-grid"></div>
+  </section>
+
+  <!-- ─────────── GALLERY VIEW ─────────── -->
+  <section class="view" id="view-gallery" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Reference gallery</h1>
+        <p>Identities you want every search compared against — reference photos of the
+           subject, known associates, or confirmed past matches.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-add-identity">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New identity
+      </button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid"></div>
+  </section>
+
+  <!-- ─────────── VERIFY VIEW ─────────── -->
+  <section class="view" id="view-verify" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Verify 1:1</h1>
+        <p>Directly compare two face photos — is this the same person?</p>
+      </div>
+    </div>
+    <div class="verify-layout">
+      <div class="verify-drop" id="vd-a">
+        <input type="file" accept="image/*" hidden>
+        <div class="vd-idle"><span>Image A</span><p>drop or click</p></div>
+        <img hidden alt="A">
+        <div class="vd-tag" hidden></div>
+      </div>
+      <div class="verify-mid">
+        <div class="verdict-ring" id="verify-ring">
+          <svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" id="verify-ring-fg" cx="60" cy="60" r="52"/></svg>
+          <div class="ring-center"><b id="verify-score">–</b><span id="verify-verdict"></span></div>
+        </div>
+        <button class="btn btn-primary" id="btn-verify" disabled>Compare</button>
+        <button class="btn btn-ghost" id="btn-verify-clear">Clear</button>
+      </div>
+      <div class="verify-drop" id="vd-b">
+        <input type="file" accept="image/*" hidden>
+        <div class="vd-idle"><span>Image B</span><p>drop or click</p></div>
+        <img hidden alt="B">
+        <div class="vd-tag" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── HISTORY VIEW ─────────── -->
+  <section class="view" id="view-history" hidden>
+    <div class="view-head">
+      <div><h1>Search history</h1><p>Every job with its query image, settings and results.</p></div>
+      <button class="btn btn-ghost" id="btn-refresh-history">Refresh</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </section>
+
+  <!-- ─────────── SYSTEM VIEW ─────────── -->
+  <section class="view" id="view-system" hidden>
+    <div class="view-head"><div><h1>System</h1><p>Backend status, engine diagnostics, model + storage info.</p></div>
+      <button class="btn btn-ghost" id="btn-sys-refresh">Refresh</button></div>
+    <div class="system-grid" id="system-grid"></div>
+  </section>
+</main>
+
+<!-- ══════════════════════════ COMPARE MODAL ══════════════════════════ -->
+<div class="modal-backdrop" id="compare-modal" hidden>
+  <div class="modal">
+    <button class="modal-close" id="compare-close">✕</button>
+    <div class="compare-grid">
+      <figure class="compare-side">
+        <img id="cmp-query" alt="query face">
+        <figcaption>Query</figcaption>
+      </figure>
+      <div class="compare-mid">
+        <div class="cmp-score" id="cmp-score">–</div>
+        <div class="cmp-verdict" id="cmp-verdict"></div>
+        <div class="cmp-cos" id="cmp-cos"></div>
+        <div class="cmp-consensus" id="cmp-consensus"></div>
+      </div>
+      <figure class="compare-side">
+        <img id="cmp-candidate" alt="candidate">
+        <figcaption id="cmp-candidate-cap">Candidate</figcaption>
+      </figure>
+    </div>
+    <div class="compare-foot">
+      <div class="cmp-source" id="cmp-source"></div>
+      <div class="cmp-actions">
+        <button class="btn btn-ghost btn-sm" id="cmp-open">Open source ↗</button>
+        <button class="btn btn-ghost btn-sm good" id="cmp-fb-good">✓ Correct match</button>
+        <button class="btn btn-ghost btn-sm bad" id="cmp-fb-bad">✗ Not a match</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script src="/static/app.js"></script>
 </body>
 </html>
