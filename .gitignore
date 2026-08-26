@@ -36,6 +36,11 @@ logs/
 # ML models (downloaded by scripts/download_models.py)
 models/
 
+# Generated desktop-icon formats (built from assets/icon.png by setup_desktop)
+assets/icon.ico
+assets/icon.icns
+scripts/desktop_launcher.vbs
+
 # Databases
 *.db
 *.db-wal

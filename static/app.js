@@ -886,7 +886,43 @@ async function loadSystem() {
       ["candidates", fmtBytes(storage.candidates_bytes)],
       ["gallery", fmtBytes(storage.gallery_bytes)],
       ["total (quota " + storage.quota_gb + " GB)", fmtBytes(total)],
-    ]);
+    ]) +
+    `<div class="sys-section sys-power">
+       <h3>Power</h3>
+       <p class="sys-note">Stops the background server. Restart by double-clicking
+       the desktop icon again (or running <code>python run.py</code>).</p>
+       <button class="btn btn-danger" id="btn-shutdown">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+         Shut down server
+       </button>
+     </div>`;
+
+  $("#btn-shutdown").addEventListener("click", async () => {
+    if (!confirm("Shut down the server? Any running searches will be stopped.")) return;
+    try {
+      await api("/api/system/shutdown", { method: "POST" });
+      showStoppedOverlay();
+    } catch (e) {
+      toast(e.message, "err");
+    }
+  });
+}
+
+function showStoppedOverlay() {
+  let el = $("#stopped-overlay");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "stopped-overlay";
+    el.className = "stopped-overlay";
+    el.innerHTML = `
+      <div class="stopped-card">
+        <div class="stopped-icon">⏻</div>
+        <h2>Server stopped</h2>
+        <p>Start it again by double-clicking your desktop icon.</p>
+      </div>`;
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
 }
 
 $("#btn-sys-refresh").addEventListener("click", loadSystem);

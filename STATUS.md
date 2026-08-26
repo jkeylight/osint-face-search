@@ -1,11 +1,14 @@
 # STATUS — OSINT Face Search
 
-**Last updated:** 2026-08-26 · **Version:** 2.0.0 · **Build:** STABLE
+**Last updated:** 2026-08-26 · **Version:** 2.1.0 · **Build:** STABLE
 
 ## Component status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
+| Desktop launcher (`npm run setup-desktop`) | ✅ WORKING | Windows .lnk / macOS .app / Linux .desktop; hidden window; custom icon |
+| Hidden desktop launcher (`desktop_app.py`) | ✅ WORKING | tested: start → browser → single-instance → UI shutdown |
+| UI "Shut down server" + `POST /api/system/shutdown` | ✅ WORKING | graceful uvicorn stop, tested |
 | Face engine (YuNet + SFace) | ✅ WORKING | 0.4 s cold load, 128-d embeddings, verified on demo set |
 | Face engine (InsightFace) | ✅ OPTIONAL | auto-detected if `pip install insightface onnxruntime` |
 | Model auto-download | ✅ WORKING | GitHub release + codeload fallback |
@@ -17,7 +20,7 @@
 | Exports (JSON/CSV/HTML) | ✅ WORKING | HTML report embeds thumbnails |
 | History | ✅ WORKING | SQLite persistence |
 | Demo case | ✅ WORKING | bundled synthetic faces, offline-capable |
-| Tests | ✅ 49 PASSING | unit + in-process API integration |
+| Tests | ✅ 61 PASSING | unit + in-process API integration |
 
 ## Engine status
 

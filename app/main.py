@@ -52,12 +52,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger("osint")
 
-app = FastAPI(title="OSINT Face Search", version="2.0.0")
+app = FastAPI(title="OSINT Face Search", version="2.1.0")
 
 db = Database(config.DB_PATH)
 face_engine = FaceEngine()
 jobs = JobManager(db)
 pipeline = Pipeline(db, face_engine, jobs)
+
+# Set by desktop_app.py so the UI "Shut down server" button can stop the
+# hidden background server gracefully (None when run via run.py/uvicorn).
+DESKTOP_SERVER = None
+
+
+def set_desktop_server(server) -> None:
+    global DESKTOP_SERVER
+    DESKTOP_SERVER = server
 
 # ------------------------------------------------------------------- mounts
 for url, directory in (
@@ -104,7 +113,7 @@ async def system_info() -> dict:
         _probe_cache["data"] = await asyncio.gather(*(probe_one(m) for m in engines))
         _probe_cache["ts"] = now
     return {
-        "app": {"name": "OSINT Face Search", "version": "2.0.0"},
+        "app": {"name": "OSINT Face Search", "version": "2.1.0"},
         "face": face_engine.info(),
         "verdict_bands": {
             "strong": config.VERDICT_STRONG,
@@ -146,6 +155,19 @@ def _storage_stats() -> dict:
 @app.get("/api/stats")
 async def stats() -> dict:
     return db.stats()
+
+
+@app.post("/api/system/shutdown")
+async def shutdown_server():
+    """Graceful shutdown for desktop mode (UI → System → Shut down server)."""
+    if DESKTOP_SERVER is None:
+        raise HTTPException(
+            503, "Not running in desktop mode — stop the server with Ctrl+C"
+        )
+    loop = asyncio.get_running_loop()
+    # small delay so the HTTP response is flushed before the server stops
+    loop.call_later(0.6, setattr, DESKTOP_SERVER, "should_exit", True)
+    return {"status": "shutting down", "note": "you can close this browser tab"}
 
 
 # ------------------------------------------------------------------- analyze

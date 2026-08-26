@@ -1,0 +1,13 @@
+{
+  "name": "osint-face-search",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Reverse image search + local face verification (desktop app wrapper — all logic is Python)",
+  "scripts": {
+    "setup-desktop": "python scripts/setup_desktop.py --name \"MyApp\"",
+    "setup-desktop:console": "python scripts/setup_desktop.py --name \"MyApp\" --console",
+    "desktop": "python desktop_app.py",
+    "start": "python run.py",
+    "test": "python -m pytest tests/ -q"
+  }
+}

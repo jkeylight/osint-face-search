@@ -152,6 +152,11 @@ main { max-width: 1240px; margin: 0 auto; padding: 26px 22px 80px; }
 .btn-ghost:hover { border-color: #2c3648; background: #1a2130; }
 .btn-ghost.good:hover { border-color: var(--good); color: var(--good); }
 .btn-ghost.bad:hover { border-color: var(--bad); color: var(--bad); }
+.btn-danger {
+  background: linear-gradient(135deg, #f87171, #ef4444); color: #2b0707;
+  box-shadow: 0 6px 20px -8px rgba(239, 68, 68, 0.55);
+}
+.btn-danger:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }
 .btn-xs { padding: 3px 9px; font-size: 11.5px; border-radius: 7px; }
 
@@ -475,6 +480,24 @@ input[type="range"] { accent-color: var(--accent); width: 140px; }
 .system-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; }
 .sys-section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
 .sys-section h3 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--txt-dim); }
+.sys-note { color: var(--txt-faint); font-size: 12.5px; margin: 0 0 14px; line-height: 1.55; }
+.sys-note code { font-family: var(--mono); font-size: 11.5px; background: var(--panel-2); padding: 1px 6px; border-radius: 5px; color: var(--txt-dim); }
+.sys-power { border-color: rgba(248, 113, 113, 0.25); }
+.sys-power .btn-danger svg { width: 15px; height: 15px; }
+
+/* stopped overlay */
+.stopped-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(4, 6, 10, 0.9); backdrop-filter: blur(8px);
+  display: grid; place-items: center; animation: fadeUp 0.25s ease;
+}
+.stopped-card {
+  text-align: center; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 18px; padding: 40px 56px; box-shadow: var(--shadow);
+}
+.stopped-icon { font-size: 44px; margin-bottom: 12px; color: var(--txt-faint); }
+.stopped-card h2 { margin: 0 0 6px; font-size: 19px; }
+.stopped-card p { margin: 0; color: var(--txt-dim); font-size: 13.5px; }
 .kv { display: flex; justify-content: space-between; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
 .kv:last-child { border-bottom: 0; }
 .kv .k { color: var(--txt-dim); }

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.1.0 — desktop app (one double-click icon)
+
+- **`npm run setup-desktop`** (or `python scripts/setup_desktop.py`) creates a
+  desktop shortcut **fully automatically**: installs missing dependencies,
+  downloads face models, builds `.ico`/`.icns` icons from the bundled custom
+  `assets/icon.png`, and creates the platform launcher — no manual shortcut
+  or VBS editing.
+- Windows: real `.lnk` via the Windows shell API (PowerShell + WScript.Shell
+  COM), resolves OneDrive-redirected Desktop folders, launches through
+  `pythonw.exe` so **no console window ever appears** (VBS hidden-launcher
+  fallback when `pythonw` is unavailable).
+- macOS: proper `.app` bundle with a generated `.icns` icon.
+- Linux: `.desktop` entry in the application menu + desktop (marked trusted).
+- New `desktop_app.py` hidden launcher: starts uvicorn in a background thread
+  (file logging for `pythonw`), waits for readiness, opens the browser,
+  single-instance aware (busy port → open a tab instead of double-starting),
+  auto-picks a free port when 8000 is taken.
+- Stop the app from the UI: new `POST /api/system/shutdown` endpoint +
+  "Shut down server" button in the System view (graceful uvicorn shutdown,
+  with a "server stopped" overlay).
+- `--console` option for a debugging shortcut that runs `run.py` visibly.
+- Shortcut name configurable (`--name`, default "MyApp").
+- 12 new tests: icon builders (ICO/ICNS structure), Windows shortcut/VBS
+  generators, desktop-entry contents, launcher port helpers, shutdown
+  endpoint behaviour (61 total).
+
 ## 2.0.0 — architecture rewrite
 
 The v1 codebase looked feature-rich on paper (17 "scrapers", InsightFace, FAISS)

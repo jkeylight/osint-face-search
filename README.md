@@ -44,6 +44,43 @@ Without Playwright the app still runs — browser engines simply report
 `unavailable` and the rest of the pipeline (gallery matching, verification,
 1:1 compare) works.
 
+---
+
+## Desktop app — one double-click icon
+
+Turn the whole thing into a desktop app with a **single command**:
+
+```bash
+npm run setup-desktop          # or: python scripts/setup_desktop.py
+```
+
+That one command does *everything* automatically:
+
+1. installs any missing Python dependencies,
+2. downloads the face models (if not present),
+3. builds the icon formats (`.ico` / `.icns`) from the bundled custom icon,
+4. creates a desktop shortcut called **MyApp** that
+   - starts the server with **no terminal window** (Windows `pythonw.exe`,
+     or a hidden launcher on macOS/Linux),
+   - opens your browser at the app automatically,
+   - is single-instance aware (double-click again → just opens a new tab).
+
+Stop the app from the **System → "Shut down server"** button — no console
+window needed. The launcher logs to `logs/desktop.log`.
+
+Options:
+
+```bash
+python scripts/setup_desktop.py --name "OSINT Face Search"   # custom shortcut name
+python scripts/setup_desktop.py --console                   # debugging shortcut
+                                                            # (visible console → run.py)
+npm run setup-desktop:console                                # same via npm
+```
+
+Works on **Windows** (`.lnk` created via the Windows shell API — handles
+OneDrive-redirected Desktop folders), **macOS** (a proper `.app` bundle with
+`.icns` icon) and **Linux** (`.desktop` entry, app menu + desktop).
+
 ### Try it in 10 seconds
 
 Click **Run demo case** on the home screen. It seeds a gallery with bundled
@@ -66,6 +103,7 @@ pipeline and shows real verification scores — no internet needed.
 | **History** | Every job persisted in SQLite with results, stats and engine diagnostics |
 | **Export** | JSON, CSV, and a portable HTML evidence report with embedded thumbnails and SHA-256 of the query |
 | **Diagnostics** | System view: backend, models, engine reachability probes, storage usage |
+| **Desktop app** | One command creates a double-click launcher (no terminal window) with a custom icon |
 | **Robustness** | Per-engine timeouts, bounded concurrency, magic-byte sniffing, graceful degradation everywhere |
 
 ## Search engines
@@ -137,7 +175,10 @@ osint-face-search/
 │   ├── engines/           # search engine adapters + registry
 │   └── utils/             # hashing (SHA-256/pHash), images, domains
 ├── static/                # single-page UI (no build step)
-├── scripts/               # setup.sh, download_models.py
+├── scripts/               # setup.sh, download_models.py, setup_desktop.py
+├── desktop_app.py         # hidden-window launcher (used by the desktop icon)
+├── assets/icon.png        # app icon source (ico/icns generated at setup)
+├── package.json           # npm script wrappers (setup-desktop, start, test)
 ├── tests/                 # pytest suite (unit + API integration)
 ├── demo/                  # bundled synthetic demo faces
 ├── models/                # ONNX models (gitignored, auto-downloaded)
@@ -148,11 +189,13 @@ osint-face-search/
 
 ```bash
 pip install pytest httpx
-python -m pytest tests/ -q
+python -m pytest tests/ -q        # or: npm test
 ```
 
-49 tests cover hashing, ranking, dedup merge, domain classification, the face
-engine (gated on models), and the full HTTP API (in-process TestClient).
+61 tests cover hashing, ranking, dedup merge, domain classification, the face
+engine (gated on models), the desktop-launcher tooling (icon builders, Windows
+shortcut/VBS generators, single-instance helpers), and the full HTTP API
+(in-process TestClient).
 
 ## Legal & ethics
 
