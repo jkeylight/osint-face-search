@@ -30,7 +30,7 @@ class TestSystemEndpoints:
         r = client.get("/api/system")
         assert r.status_code == 200
         body = r.json()
-        assert body["app"]["version"] == "2.1.0"
+        assert body["app"]["version"] == "2.1.1"
         assert isinstance(body["engines"], list) and body["engines"]
         assert "face" in body and "models" in body
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.1.1 — foolproof desktop install
+
+- **`Install Desktop Icon.bat`** in the repo root: double-click it on Windows
+  and that's the whole install — it finds Python (`py -3` or `python`), runs
+  the setup, and shows exactly what happened (no npm or command line needed).
+- Windows Desktop-folder resolution now reads the **registry first**
+  (`User Shell Folders\Desktop`, handles OneDrive redirection without
+  spawning PowerShell), with PowerShell and `%USERPROFILE%\Desktop`
+  fallbacks.
+- `.lnk` creation falls back from PowerShell to a **VBScript shortcut
+  creator** run via `cscript` — works on machines where PowerShell is
+  blocked by policy. The shortcut's existence is verified after creation.
+- After creating the shortcut, the installer **opens Explorer with the icon
+  selected** so you can see exactly where it landed, and prints the resolved
+  Desktop folder path.
+- README: new troubleshooting section ("the icon is not on my Desktop").
+- 2 new tests (14 in the desktop suite, 63 total).
+
 ## 2.1.0 — desktop app (one double-click icon)
 
 - **`npm run setup-desktop`** (or `python scripts/setup_desktop.py`) creates a
@@ -24,7 +42,7 @@
 - Shortcut name configurable (`--name`, default "MyApp").
 - 12 new tests: icon builders (ICO/ICNS structure), Windows shortcut/VBS
   generators, desktop-entry contents, launcher port helpers, shutdown
-  endpoint behaviour (61 total).
+  endpoint behaviour (65 total).
 
 ## 2.0.0 — architecture rewrite
 

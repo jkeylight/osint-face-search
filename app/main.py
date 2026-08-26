@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("osint")
 
-app = FastAPI(title="OSINT Face Search", version="2.1.0")
+app = FastAPI(title="OSINT Face Search", version="2.1.1")
 
 db = Database(config.DB_PATH)
 face_engine = FaceEngine()
@@ -113,7 +113,7 @@ async def system_info() -> dict:
         _probe_cache["data"] = await asyncio.gather(*(probe_one(m) for m in engines))
         _probe_cache["ts"] = now
     return {
-        "app": {"name": "OSINT Face Search", "version": "2.1.0"},
+        "app": {"name": "OSINT Face Search", "version": "2.1.1"},
         "face": face_engine.info(),
         "verdict_bands": {
             "strong": config.VERDICT_STRONG,

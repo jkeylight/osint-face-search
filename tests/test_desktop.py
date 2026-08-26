@@ -128,6 +128,26 @@ class TestWindowsScript:
         command = m.group(1).replace('""', '"')
         assert command == '"C:\\Python311\\python.exe" "C:\\proj\\desktop_app.py"'
 
+    def test_vbs_str_quotes(self):
+        assert setup_desktop._vbs_str("plain") == '"plain"'
+        assert setup_desktop._vbs_str('say "hi"') == '"say ""hi"""'
+
+    def test_lnk_vbs_script_contents(self, tmp_path):
+        """PowerShell-free .lnk creator (used when PowerShell is blocked)."""
+        lnk = tmp_path / "MyApp.lnk"
+        vbs = setup_desktop._lnk_vbs_script(
+            lnk, r"C:\Python311\pythonw.exe", '"C:\proj\desktop_app.py"', 1
+        )
+        assert 'Set sc = ws.CreateShortcut("MyApp.lnk")' in vbs.replace(str(lnk), "MyApp.lnk").replace("\\\\", "\\")
+        assert 'sc.TargetPath = "C:\\Python311\\pythonw.exe"' in vbs
+        assert 'sc.Arguments = """C:\\proj\\desktop_app.py"""' in vbs
+        assert "icon.ico" in vbs
+        assert vbs.rstrip().endswith("If Err.Number <> 0 Then WScript.Quit 1")
+        # decodes to valid .lnk fields (round-trip the VBS escaping)
+        import re
+        target = re.search(r"sc\.TargetPath = \"(.*)\"", vbs).group(1).replace('""', '"')
+        assert target == r"C:\Python311\pythonw.exe"
+
 
 class TestLauncherHelpers:
     def test_find_free_port_returns_free(self):

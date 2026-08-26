@@ -48,7 +48,16 @@ Without Playwright the app still runs — browser engines simply report
 
 ## Desktop app — one double-click icon
 
-Turn the whole thing into a desktop app with a **single command**:
+### Windows — easiest way
+
+1. Open the project folder and **double-click `Install Desktop Icon.bat`**
+2. That's it — an Explorer window opens showing the new **MyApp** icon.
+
+No npm, no command line, nothing to create manually. The batch file finds
+Python itself, installs missing packages, downloads the face models, builds
+the icon and creates the shortcut.
+
+### Any platform — command line
 
 ```bash
 npm run setup-desktop          # or: python scripts/setup_desktop.py
@@ -80,6 +89,22 @@ npm run setup-desktop:console                                # same via npm
 Works on **Windows** (`.lnk` created via the Windows shell API — handles
 OneDrive-redirected Desktop folders), **macOS** (a proper `.app` bundle with
 `.icns` icon) and **Linux** (`.desktop` entry, app menu + desktop).
+
+### "The icon is not on my Desktop!"
+
+1. **Make sure you actually have the new code** — the file
+   `Install Desktop Icon.bat` must exist in the project folder. If it
+   doesn't, your copy is on the old version: run `git pull origin main`
+   (or download the ZIP from GitHub) and try again.
+2. **Read the installer output** — it prints the exact Desktop folder it
+   used and the full path of the created shortcut, and opens an Explorer
+   window with the icon selected. Note that with OneDrive, Windows keeps
+   your Desktop in `OneDrive\Desktop` — that is where the icon appears.
+3. **No Python?** Install Python 3.10+ from python.org with
+   "Add Python to PATH" ticked, then double-click the `.bat` again.
+4. **PowerShell blocked** (some corporate machines)? The installer
+   automatically falls back to a VBScript shortcut creator — no action
+   needed.
 
 ### Try it in 10 seconds
 
@@ -192,7 +217,7 @@ pip install pytest httpx
 python -m pytest tests/ -q        # or: npm test
 ```
 
-61 tests cover hashing, ranking, dedup merge, domain classification, the face
+63 tests cover hashing, ranking, dedup merge, domain classification, the face
 engine (gated on models), the desktop-launcher tooling (icon builders, Windows
 shortcut/VBS generators, single-instance helpers), and the full HTTP API
 (in-process TestClient).

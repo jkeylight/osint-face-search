@@ -163,6 +163,11 @@ def _ps_quote(s: str) -> str:
     return "'" + str(s).replace("'", "''") + "'"
 
 
+def _vbs_str(s: str) -> str:
+    """Quote a string for VBScript (embedded quotes doubled)."""
+    return '"' + str(s).replace('"', '""') + '"'
+
+
 def _windows_shortcut_script(lnk: Path, target: str, arguments: str,
                              window_style: int = 1) -> str:
     """PowerShell script that creates a .lnk via the WScript.Shell COM API."""
@@ -179,6 +184,24 @@ $sc.WindowStyle = {window_style}
 $sc.Save()
 Write-Output 'OK'
 """
+
+
+def _lnk_vbs_script(lnk: Path, target: str, arguments: str,
+                    window_style: int = 1) -> str:
+    """VBScript that creates the same .lnk (used when PowerShell is blocked)."""
+    return "\n".join([
+        "On Error Resume Next",
+        "Set ws = CreateObject(\"WScript.Shell\")",
+        f"Set sc = ws.CreateShortcut({_vbs_str(str(lnk))})",
+        f"sc.TargetPath = {_vbs_str(target)}",
+        f"sc.Arguments = {_vbs_str(arguments)}",
+        f"sc.WorkingDirectory = {_vbs_str(str(ROOT))}",
+        f"sc.IconLocation = {_vbs_str(str(ICON_ICO))},0",
+        f"sc.Description = {_vbs_str(APP_TITLE)}",
+        f"sc.WindowStyle = {window_style}",
+        "sc.Save",
+        "If Err.Number <> 0 Then WScript.Quit 1",
+    ]) + "\n"
 
 
 def _vbs_launcher_content(python: str, script: Path) -> str:
@@ -203,12 +226,86 @@ def _run_powershell(script: str) -> str:
 
 
 def _windows_desktop_dir() -> Path:
-    out = _run_powershell(
-        "[Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)"
-    ).strip()
-    desktop = Path(out) if out else Path.home() / "Desktop"
+    """
+    Resolve the real Desktop folder (handles OneDrive redirection).
+
+    Order: registry (no subprocess needed) -> PowerShell -> %USERPROFILE%\\Desktop.
+    """
+    # 1) registry — "User Shell Folders\\Desktop" tracks OneDrive redirection
+    try:
+        import winreg  # stdlib, Windows only
+
+        for subkey in (
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+        ):
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey) as key:
+                    val, _ = winreg.QueryValueEx(key, "Desktop")
+                    desktop = Path(os.path.expandvars(val))
+                    if desktop.is_dir():
+                        return desktop
+            except OSError:
+                continue
+    except ImportError:
+        pass
+
+    # 2) PowerShell known-folder query
+    try:
+        out = _run_powershell(
+            "[Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)"
+        ).strip()
+        if out:
+            desktop = Path(out.splitlines()[-1])
+            desktop.mkdir(parents=True, exist_ok=True)
+            return desktop
+    except Exception:
+        pass
+
+    # 3) plain fallback
+    desktop = Path.home() / "Desktop"
     desktop.mkdir(parents=True, exist_ok=True)
     return desktop
+
+
+def _create_lnk_powershell(lnk: Path, target: str, args: str,
+                           window_style: int) -> bool:
+    try:
+        _run_powershell(_windows_shortcut_script(lnk, target, args, window_style))
+    except Exception:
+        return False
+    return lnk.exists()
+
+
+def _create_lnk_vbs(lnk: Path, target: str, args: str,
+                    window_style: int) -> bool:
+    """Fallback .lnk creator via cscript (for PowerShell-locked machines)."""
+    import tempfile
+
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".vbs", delete=False,
+                                         encoding="ascii") as fh:
+            fh.write(_lnk_vbs_script(lnk, target, args, window_style))
+            vbs_path = Path(fh.name)
+    except OSError:
+        return False
+    try:
+        subprocess.run(["cscript", "//nologo", str(vbs_path)],
+                       capture_output=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    finally:
+        vbs_path.unlink(missing_ok=True)
+    return lnk.exists()
+
+
+def _reveal_in_explorer(path: Path) -> None:
+    """Open Explorer with the shortcut selected so the user sees where it is."""
+    try:
+        subprocess.run(["explorer", f"/select,{path}"],
+                       check=False, timeout=10)
+    except Exception:
+        pass
 
 
 def create_windows_shortcut(name: str, console_mode: bool = False) -> Path:
@@ -234,11 +331,15 @@ def create_windows_shortcut(name: str, console_mode: bool = False) -> Path:
         target, args = "wscript.exe", f'"{vbs}"'
         window_style = 1
 
-    script = _windows_shortcut_script(lnk, target, args, window_style)
-    try:
-        _run_powershell(script)
-    except Exception as e:  # noqa: BLE001
-        die(f"could not create the shortcut: {e}")
+    created = _create_lnk_powershell(lnk, target, args, window_style)
+    if not created:
+        log("• PowerShell shortcut creation failed — trying VBScript fallback …")
+        created = _create_lnk_vbs(lnk, target, args, window_style)
+    if not created:
+        die(f"could not create the shortcut at {lnk} — create it manually "
+            f"pointing to: {target} {args}")
+    log(f"✓ desktop folder: {desktop}")
+    _reveal_in_explorer(lnk)
     return lnk
 
 
@@ -282,7 +383,7 @@ exec {_sh_quote(sys.executable)} {_sh_quote(str(DESKTOP_APP))}
     <key>CFBundleIconFile</key><string>app.icns</string>
     <key>CFBundleIdentifier</key><string>local.osintfacesearch.{_xml_escape(script_name.lower())}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>2.1.0</string>
+    <key>CFBundleShortVersionString</key><string>2.1.1</string>
     <key>LSBackgroundOnly</key><false/>
 </dict>
 </plist>
