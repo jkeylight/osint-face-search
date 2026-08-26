@@ -1,49 +1,44 @@
 """
-OSINT Face Search Tool - Desktop Application
-Reverse image search aggregator with local face verification
+OSINT Face Search — entry point.
+
+Usage:
+    python run.py                 # serve on 0.0.0.0:8000
+    OSINT_PORT=9000 python run.py
 """
-import os
+from __future__ import annotations
+
+import logging
 import sys
-import webbrowser
-import threading
-import uvicorn
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-CACHE_DIR = BASE_DIR / "cache"
-DATA_DIR = BASE_DIR / "data"
-STATIC_DIR = BASE_DIR / "static"
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
 
-for d in [UPLOAD_DIR, CACHE_DIR, DATA_DIR]:
-    d.mkdir(exist_ok=True)
+from app.config import config  # noqa: E402
 
-def open_browser():
-    """Open browser after server starts"""
-    import time
-    time.sleep(2)
-    webbrowser.open("http://localhost:8000")
 
-def main():
-    print("=" * 60)
-    print("  OSINT FACE SEARCH TOOL")
-    print("  Reverse Image Search + Local Face Verification")
-    print("=" * 60)
+def main() -> None:
+    import uvicorn
+
+    print("=" * 62)
+    print("  OSINT FACE SEARCH  v2.0")
+    print("  Reverse image search + local face verification")
+    print("=" * 62)
+    print(f"  URL      http://localhost:{config.PORT}")
+    print(f"  Models   {config.MODEL_DIR}")
+    print("  Stop     Ctrl+C")
     print()
-    print("  Starting server on http://localhost:8000")
-    print("  Browser will open automatically...")
-    print("  Press Ctrl+C to stop")
-    print()
-    
-    threading.Thread(target=open_browser, daemon=True).start()
-    
+
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
     uvicorn.run(
         "app.main:app",
-        host="127.0.0.1",
-        port=8000,
-        reload=False,
-        log_level="info"
+        host=config.HOST,
+        port=config.PORT,
+        log_level="info",
+        access_log=False,
     )
+
 
 if __name__ == "__main__":
     main()
