@@ -38,3 +38,31 @@ Forensic-grade macro history for the repository. Append an entry after every maj
   - [ ] Add the next product feature's test definition to `TTD_LOG.md` before implementation.
   - [ ] Log any failing command in `ERROR_LOG.md` in the same response that observes it.
 - **Notes:** Re-verification returned `documentation governance verification: PASS`.
+
+## [2026-08-27] Update: Production Release Pipeline Hardening
+- **Status:** Blocked
+- **Architectural Changes:** Added a production release specification, hardened Vite for platform WebView targets and release minification, restricted frontend environment exposure to `VITE_`, routed Tauri build hooks through the pinned Corepack package manager, added conservative Rust release optimization, and added a single-source SVG icon pipeline.
+- **Completed Tasks:**
+  - [x] Added `docs/PRODUCTION_RELEASE.md` with native builder prerequisites, production commands, artifact paths, signing, distribution, and release gates.
+  - [x] Added `apps/desktop/assets/aether-stream-icon.svg` as the single icon source.
+  - [x] Verified official Tauri icon generation for PNG, ICO, ICNS, Windows Store, Android, and iOS assets.
+  - [x] Verified desktop Svelte checks, production Vite build, MV3 extension build, P2P adapter build, and production configuration assertions.
+  - [x] Added Vite and Cargo release hardening without exposing secrets.
+  - [x] Recorded the failed native artifact attempt as `ERR-002`; no native installer was claimed or published.
+- **Next Steps:**
+  - [ ] Provision a native/CI release runner with Rust stable/Cargo and target-specific Tauri prerequisites.
+  - [ ] Generate and commit the workspace `Cargo.lock` from the provisioned release toolchain.
+  - [ ] Run `tauri build --ci` on Windows, macOS, and Linux; verify signatures, notarization, checksums, and clean-profile SQLCipher bootstrap.
+  - [ ] Complete mobile project initialization before claiming Android APK/AAB or iOS IPA deliverables.
+- **Notes:** This repository now has an explicit production-only pipeline; it does not use a development server. The current sandbox can build frontend/extension assets but cannot produce the native binary because Cargo and Linux WebKitGTK/rsvg2 prerequisites are absent. Direct package-manager failure `ERR-001` was resolved by using the pinned `corepack pnpm` invocation, not by adding a global dependency.
+
+## [2026-08-27] Update: Pre-commit Production Control-plane Audit
+- **Status:** Completed with Native Build Blocker
+- **Architectural Changes:** No additional product architecture changed. The production release contract, asset pipeline, package-manager invocation, and forensic logs passed the pre-commit control-plane audit.
+- **Completed Tasks:**
+  - [x] Rechecked release JSON, Vite/Cargo/Tauri assertions, icon source references, and diff whitespace.
+  - [x] Confirmed all native-build failures remain documented rather than hidden.
+- **Next Steps:**
+  - [ ] Provision the required native/CI toolchain and rerun the exact release commands in `docs/PRODUCTION_RELEASE.md`.
+  - [ ] Do not publish until the native Tauri artifact gate changes from FAIL/BLOCKED to PASS.
+- **Notes:** The frontend, extension, P2P library, icon generation, and release-control surfaces are verified. A compiled Tauri installer is not present in this sandbox; `ERR-002` is the controlling release blocker.

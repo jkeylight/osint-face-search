@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 1420",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "icons:generate": "tauri icon assets/aether-stream-icon.svg --output src-tauri/icons --ios-color \"#080a0f\"",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build --ci"
   },
   "dependencies": {
     "@humanspeak/svelte-motion": "^0.5.3",

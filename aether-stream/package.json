@@ -5,13 +5,13 @@
   "description": "A privacy-first, Rust-powered download and data-ingestion engine.",
   "packageManager": "pnpm@10.15.0",
   "scripts": {
-    "dev": "pnpm --filter @aether-stream/desktop tauri dev",
-    "build": "pnpm --filter @aether-stream/desktop tauri build",
-    "check": "pnpm --filter @aether-stream/desktop check",
+    "dev": "corepack pnpm --filter @aether-stream/desktop tauri dev",
+    "build": "corepack pnpm --filter @aether-stream/desktop tauri build --ci",
+    "check": "corepack pnpm --filter @aether-stream/desktop check",
     "test:rust": "cargo test --workspace",
-    "db:generate": "pnpm --filter @aether-stream/data prisma:generate",
-    "extension:build": "pnpm --filter @aether-stream/extension build",
-    "p2p:build": "pnpm --filter @aether-stream/p2p-adapter build"
+    "db:generate": "corepack pnpm --filter @aether-stream/data prisma:generate",
+    "extension:build": "corepack pnpm --filter @aether-stream/extension build",
+    "p2p:build": "corepack pnpm --filter @aether-stream/p2p-adapter build"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

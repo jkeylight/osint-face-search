@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.aether.stream",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "corepack pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "corepack pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -32,6 +32,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Utility",
+    "shortDescription": "Private, encrypted download engine",
+    "longDescription": "AETHER-STREAM is a local-first download and data-ingestion engine with encrypted queue storage, resumable transport, and zero telemetry by default.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
