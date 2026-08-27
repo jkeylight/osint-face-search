@@ -50,3 +50,28 @@ Forensic record of every build failure, lint issue, runtime panic, warning that 
 - **Root Cause Analysis:** `tauri info` did not resolve the pnpm workspace symlink for `@tauri-apps/api` during its package inspection. The package is declared in `apps/desktop/package.json`, present in `pnpm-lock.yaml`, and linked under `apps/desktop/node_modules/@tauri-apps/api`.
 - **Resolution / Workaround:** No dependency change was made. The desktop Svelte check and production Vite build both completed successfully, confirming the package is resolvable by the actual build toolchain. The warning is isolated to the diagnostic command's package inspection.
 - **Prevention:** Treat `tauri info` as a diagnostic signal rather than the dependency resolver; retain the frozen pnpm install, lockfile, TypeScript check, and production Vite build as the authoritative JavaScript dependency gates.
+
+## Error ID: ERR-004 | 2026-08-27 15:13 IST
+- **Component:** Windows Production Release Preflight / Rust Toolchain
+- **Severity:** High
+- **Error Message / Stack Trace:**
+  ```text
+  $ rustc --version
+  bash: rustc: command not found
+  ```
+- **Root Cause Analysis:** The Windows build machine has Node.js/Corepack/pnpm available, but Rust stable and Cargo are not installed or are not on the Git Bash `PATH`. Tauri cannot compile the native desktop shell without them.
+- **Resolution / Workaround:** No development-server workaround is applicable. Install the official Rust stable MSVC toolchain on the Windows release machine, reopen Git Bash so the Rust path is loaded, and verify `rustc --version` and `cargo --version` before invoking `tauri build --ci`.
+- **Prevention:** Keep `rustc --version` and `cargo --version` as hard release preflight gates; never publish a native artifact after a missing-toolchain result.
+
+## Error ID: ERR-005 | 2026-08-27 15:14 IST
+- **Component:** JavaScript Dependency Installation / pnpm Lifecycle Policy
+- **Severity:** Medium
+- **Error Message / Stack Trace:**
+  ```text
+  Ignored build scripts: @prisma/client, @prisma/engines, bufferutil,
+  esbuild, ip-set, node-datachannel, prisma, utf-8-validate, utp-native.
+  Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+  ```
+- **Root Cause Analysis:** pnpm 10 intentionally blocks dependency lifecycle scripts by default. The install completed, but packages that need postinstall/native preparation were not allowed to run their scripts.
+- **Resolution / Workaround:** No global package-manager upgrade was used. Before the production frontend/native build, approve only the dependencies required by the selected artifact: `esbuild` is required for the Vite release bundle; Prisma packages are not required by the native runtime; the P2P native packages are only required if the optional P2P runtime is shipped. Use the pinned command `corepack pnpm approve-builds` and select the required packages.
+- **Prevention:** Record the approved build-dependency allowlist in the release environment and review it whenever dependencies change. Keep pnpm pinned at `10.15.0`; do not broadly enable every lifecycle script without review.

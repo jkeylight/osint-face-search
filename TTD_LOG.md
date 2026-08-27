@@ -143,3 +143,25 @@ Strict Red → Green → Refactor record. Define the behavior and test intent be
 - **Execution Result:** ✅ PASS — CLI output was `release configuration JSON: PASS` followed by `production release control-plane verification: PASS`.
 - **Coverage Impact:** Documentation and release-control coverage verified; native artifact compilation remains blocked by `ERR-002`.
 - **Refactor Notes:** No additional code refactor was made after the audit.
+
+## Test Cycle: Windows Native Release Preflight | 2026-08-27
+- **Test File:** `aether-stream/apps/desktop/src-tauri/tauri.conf.json`, Windows builder environment
+- **Objective:** Verify that the Windows release builder has the Rust compiler and Cargo required by the production Tauri build.
+- **Test Cases Defined:**
+  1. `rustc --version` should return the installed stable Rust compiler.
+  2. `cargo --version` should return the installed Cargo toolchain.
+  3. Only after both checks pass should `tauri build --ci` be executed.
+- **Execution Result:** ❌ FAIL — `rustc --version` returned `bash: rustc: command not found`. Cargo validation was not attempted after the compiler prerequisite failed.
+- **Coverage Impact:** Windows release preflight executed and blocked at the Rust compiler gate; no native artifact coverage gained.
+- **Refactor Notes:** The JavaScript dependency installation passed with pnpm `10.15.0`; the pnpm build-script warning is separately recorded and must be resolved for packages whose postinstall binaries are required.
+
+## Test Cycle: Windows JavaScript Dependency Install | 2026-08-27
+- **Test File:** `aether-stream/pnpm-workspace.yaml`, `aether-stream/pnpm-lock.yaml`, workspace package manifests
+- **Objective:** Install the pinned JavaScript dependency graph on the Windows release checkout without changing the lockfile.
+- **Test Cases Defined:**
+  1. `corepack pnpm --version` should resolve the pinned pnpm 10 toolchain.
+  2. `corepack pnpm install --frozen-lockfile` should complete without modifying dependency resolution.
+  3. Lifecycle scripts should be reviewed rather than silently accepted; required native/prebuilt package scripts must be approved before packaging.
+- **Execution Result:** ✅ PASS WITH RELEASE WARNING — pnpm `10.15.0` resolved and the frozen install completed successfully; pnpm reported ignored lifecycle scripts for `esbuild`, Prisma, and optional P2P/native packages. The warning is recorded as `ERR-005`; native packaging remains blocked by `ERR-004`.
+- **Coverage Impact:** Windows JavaScript dependency installation verified; native artifact coverage unchanged.
+- **Refactor Notes:** Do not upgrade to the displayed pnpm `11.24.0` notice during this release. Keep the repository-pinned pnpm 10 policy and approve only the reviewed build dependencies required for the artifact.

@@ -66,3 +66,17 @@ Forensic-grade macro history for the repository. Append an entry after every maj
   - [ ] Provision the required native/CI toolchain and rerun the exact release commands in `docs/PRODUCTION_RELEASE.md`.
   - [ ] Do not publish until the native Tauri artifact gate changes from FAIL/BLOCKED to PASS.
 - **Notes:** The frontend, extension, P2P library, icon generation, and release-control surfaces are verified. A compiled Tauri installer is not present in this sandbox; `ERR-002` is the controlling release blocker.
+
+## [2026-08-27] Update: Windows Release Preflight
+- **Status:** Blocked
+- **Architectural Changes:** No product-code architecture changed. The standalone repository's Windows production checkout was cloned and its JavaScript dependency graph installed with the pinned pnpm `10.15.0` toolchain.
+- **Completed Tasks:**
+  - [x] Confirmed the target repository clone completed successfully.
+  - [x] Confirmed `corepack pnpm --version` returned `10.15.0`.
+  - [x] Confirmed `corepack pnpm install --frozen-lockfile` completed without lockfile changes.
+  - [x] Recorded pnpm's blocked lifecycle scripts as `ERR-005`.
+- **Next Steps:**
+  - [ ] Install the official Rust stable MSVC toolchain and Windows C++/WebView2 prerequisites.
+  - [ ] Run `rustc --version` and `cargo --version` successfully.
+  - [ ] Review and approve only required pnpm build scripts, then run the production Tauri build.
+- **Notes:** The pnpm update notice was not acted on; pnpm remains pinned at `10.15.0`. The native build must not be attempted until `ERR-004` is resolved.
