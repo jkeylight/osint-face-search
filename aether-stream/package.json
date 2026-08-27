@@ -1,0 +1,20 @@
+{
+  "name": "aether-stream",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A privacy-first, Rust-powered download and data-ingestion engine.",
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @aether-stream/desktop tauri dev",
+    "build": "pnpm --filter @aether-stream/desktop tauri build",
+    "check": "pnpm --filter @aether-stream/desktop check",
+    "test:rust": "cargo test --workspace",
+    "db:generate": "pnpm --filter @aether-stream/data prisma:generate",
+    "extension:build": "pnpm --filter @aether-stream/extension build"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "prettier-plugin-svelte": "^3.4.0",
+    "typescript": "^5.9.2"
+  }
+}

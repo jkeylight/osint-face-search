@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vite/
+.svelte-kit/
+.target/
+
+# Rust
+**/target/
+Cargo.lock
+!apps/desktop/src-tauri/Cargo.lock
+
+# Local queue state and downloaded content
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.aether-partial-*
+.aether-staging/

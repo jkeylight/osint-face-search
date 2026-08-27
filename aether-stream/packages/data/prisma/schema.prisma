@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Timestamps are unix seconds so this schema stays byte-for-byte compatible
+// with the rusqlite migration used by the native engine.
+model Download {
+  id             String   @id
+  url            String
+  destination    String
+  totalBytes     BigInt?  @map("total_bytes")
+  completedBytes BigInt   @default(0) @map("completed_bytes")
+  status         String   @default("queued")
+  createdAt      Int      @default(0) @map("created_at")
+  updatedAt      Int      @default(0) @map("updated_at")
+  chunks         Chunk[]
+
+  @@index([status])
+  @@map("downloads")
+}
+
+model Chunk {
+  downloadId     String   @map("download_id")
+  chunkIndex     Int      @map("chunk_index")
+  startByte      BigInt   @map("start_byte")
+  endByte        BigInt   @map("end_byte")
+  completedBytes BigInt   @default(0) @map("completed_bytes")
+  status         String   @default("pending")
+  updatedAt      Int      @default(0) @map("updated_at")
+  download       Download @relation(fields: [downloadId], references: [id], onDelete: Cascade)
+
+  @@id([downloadId, chunkIndex])
+  @@index([downloadId])
+  @@map("chunks")
+}

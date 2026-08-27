@@ -1,0 +1,4 @@
+# reqwest's HTTP/3 integration is currently gated behind this opt-in cfg.
+# Remove this file when the upstream gate is retired.
+[build]
+rustflags = ["--cfg", "reqwest_unstable"]

@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capabilities for the AETHER-STREAM desktop window.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

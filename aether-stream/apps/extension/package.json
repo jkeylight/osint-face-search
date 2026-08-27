@@ -1,0 +1,14 @@
+{
+  "name": "@aether-stream/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project tsconfig.json && node scripts/copy-manifest.mjs",
+    "check": "tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "typescript": "^5.9.2"
+  }
+}
