@@ -1,6 +1,6 @@
 # AETHER-STREAM architecture
 
-AETHER-STREAM inverts the legacy download-manager assumptions: the native core owns transport and state, the UI is a replaceable projection, and the browser integration is a narrow, authenticated intent source.
+AETHER-STREAM inverts the legacy download-manager assumptions: the native core owns transport and state, the UI is a replaceable projection, and the browser integration is a narrow, authenticated intent source. The vault is fail-closed: the UI stays behind the lock screen until a local Argon2id credential or a platform biometric succeeds.
 
 ## Reproducible initialization
 
@@ -57,17 +57,24 @@ flowchart LR
 
     subgraph Desktop[Local device · Tauri 2]
         UI["Svelte 5 UI\nTailwind + Framer-compatible motion\n120 fps intent"]
+        Lock["Cinematic App Lock\nArgon2id password\nbiometric trigger"]
+        Auth["Rust AuthController\nlockout + zeroized secrets"]
         Bridge["Tauri invoke / event bridge\ncapability-scoped commands"]
         Core["Rust core engine\nDownloadManager\nQUIC / HTTP·1.1 fallback"]
-        Store["SQLite\nrusqlite runtime\nPrisma schema contract"]
+        Store["Encrypted SQLite\nSQLCipher + rusqlite\nPrisma schema contract"]
         Plugin["WASM/WASI plugin host\nexplicit capabilities"]
-        Secrets["OS keychain\noptional queue-key envelope"]
+        Keychain["OS keychain\nSQLCipher database key"]
 
         UI <-->|typed commands + local events| Bridge
+        UI <-->|locked until success| Lock
+        Lock <-->|password / biometric intent| Bridge
+        Bridge <-->|in-process calls + event bus| Auth
         Bridge <-->|in-process calls + event bus| Core
+        Auth -->|verifier + auth state| Store
         Core <-->|queue, chunks, history| Store
         Core -->|post-download job| Plugin
-        Core -->|URLs, auth headers, queue keys| Secrets
+        Auth -->|retrieve key, never export| Keychain
+        Core -->|queue credentials only| Keychain
     end
 
     subgraph Network[External surfaces · opt-in per operation]
@@ -75,10 +82,12 @@ flowchart LR
         Sync["Optional sync relay\nopaque encrypted CRDT ops"]
         ClamAV["Optional local ClamAV daemon"]
         Cloud["Optional S3-compatible target"]
+        P2P["Optional WebTorrent fallback\nuser-supplied authorized magnet"]
     end
 
     Extension -->|signed download intent\n(native messaging / Tauri bridge)| Bridge
     Core -->|range requests + H3| Origin
+    Core -.->|opt-in fallback| P2P
     Core <-->|encrypted CRDT operations\nnever raw queue files| Sync
     Plugin -->|local socket, explicit permission| ClamAV
     Plugin -->|explicit upload capability| Cloud
@@ -92,6 +101,16 @@ flowchart LR
 - Uses `invoke` for commands and a typed event stream for progress.
 - The browser-facing code uses relative Tauri IPC, never `localhost` or `127.0.0.1`.
 - Reduced-motion preferences and keyboard navigation are first-class, not polish added later.
+
+### Fortress local security
+
+- The Tauri shell obtains a random 256-bit SQLCipher key from the native OS keychain. The key is never placed in the database, event payloads, logs, or sync operations.
+- `QueueStore` authenticates the SQLCipher key before applying migrations. Queue metadata, history, and the Argon2id verifier are unreadable without the keychain secret.
+- `AuthController` stores only an Argon2id PHC verifier, zeroizes password inputs, enforces a five-failure lockout window, and exposes a fail-closed `locked` state.
+- The platform biometric adapter is an explicit trait boundary. The Tauri biometry plugin covers Windows Hello, macOS Touch ID, iOS, and Android; a Linux desktop-portal/PAM implementation can be injected without passing biometric material through Svelte or the download engine.
+- The UI is mounted behind `CinematicLockScreen`; the Tauri `enqueue_download` command rejects calls while locked.
+
+The Prisma file remains a schema contract. Prisma Client does not transparently open the SQLCipher runtime database; migrations/schema checks should run against a disposable compatibility database or a SQLCipher-capable adapter, while production reads and writes remain in `rusqlite`.
 
 ### Rust core
 
@@ -112,7 +131,7 @@ The segment planner caps at 64 parts and uses a minimum part size to avoid turni
 
 ### Persistence
 
-`rusqlite` is the runtime storage driver because the queue lives beside the Rust engine and must remain available offline. `packages/data/prisma/schema.prisma` is the shared schema contract for TypeScript tooling, migrations, and future sync services; it points at the same SQLite file. The two layers must share migration IDs and schema tests—Prisma must not silently create a second database.
+`rusqlite` is the runtime storage driver because the queue lives beside the Rust engine and must remain available offline. `packages/data/prisma/schema.prisma` is the shared schema contract for TypeScript tooling, migrations, and future sync services. Because Prisma Client is not SQLCipher-aware by default, production must not point it at the encrypted runtime file; use a disposable compatibility database or a SQLCipher-capable adapter for schema tooling. Migration IDs and schema tests remain shared so the two layers cannot silently drift.
 
 ### Browser extension
 
@@ -120,9 +139,12 @@ The extension reports media candidates visible to the current page:
 
 - `<video>`, `<audio>`, `<source>`, and download anchors;
 - resource URLs surfaced by `performance.getEntriesByType('resource')`;
-- HLS (`.m3u8`) and DASH (`.mpd`) manifests when the page exposes those URLs.
+- HLS (`.m3u8`) and DASH (`.mpd`) manifests when the page exposes those URLs;
+- `blob:` media handles are marked as page-context material that must be
+  materialized by an explicit, user-confirmed browser action rather than sent
+  directly to the native network client.
 
-It observes DOM mutations and SPA history transitions without monkey-patching framework internals. It does not defeat DRM, extract protected media keys, or send page content to a remote service. The bridge should use native messaging or a signed Tauri protocol with an origin allowlist and a per-install nonce.
+It observes DOM mutations and SPA history transitions without monkey-patching framework internals. It does not defeat DRM, extract protected media keys, or send page content to a remote service. The bridge should use native messaging or a signed Tauri protocol with an origin allowlist and a per-install nonce. A WebTorrent fallback accepts only a user-supplied, authorized magnet URI and is never an automatic content-discovery path.
 
 ### Optional sync
 
@@ -132,7 +154,9 @@ A future sync relay receives only encrypted CRDT operations. The device generate
 
 | Asset / boundary | Threat | Design response |
 |---|---|---|
-| Queue URLs and filenames | Telemetry or accidental exfiltration | No analytics; local-only defaults; explicit encrypted sync opt-in |
+| Queue URLs and filenames | Telemetry or accidental exfiltration | No analytics; SQLCipher at rest; local-only defaults; explicit encrypted sync opt-in |
+| Launch authentication | Offline brute force or unlocked stale session | Argon2id verifier, zeroized input, five-attempt lockout, explicit re-lock command |
+| Database key | Key leakage from files or logs | Random 256-bit key held by the OS keychain; never stored in SQLite or events |
 | Downloaded file | Malicious content or path traversal | Canonical destination checks, staging directory, optional ClamAV pipeline |
 | Browser bridge | Arbitrary websites invoking native actions | Native-messaging allowlist, signed request envelope, nonce, user confirmation for new origins |
 | WASM post-processing | Plugin escape / ambient file access | WASI capability set, memory/fuel limits, no ambient network, audited host functions |

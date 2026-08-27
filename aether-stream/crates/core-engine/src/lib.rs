@@ -6,8 +6,10 @@
 //! range validation, concurrent workers, cancellation, HTTP/3 preference with
 //! protocol fallback, private staging, and atomic publication.
 
+mod auth;
 mod storage;
 
+pub use auth::{AuthController, AuthError, AuthStatus, BiometricAuthenticator};
 pub use storage::{QueueStore, StoreError};
 
 use futures_util::StreamExt;

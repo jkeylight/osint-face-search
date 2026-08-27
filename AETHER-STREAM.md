@@ -7,5 +7,7 @@ Start with:
 - [`aether-stream/README.md`](aether-stream/README.md)
 - [`aether-stream/docs/ARCHITECTURE.md`](aether-stream/docs/ARCHITECTURE.md)
 - [`aether-stream/crates/core-engine/src/lib.rs`](aether-stream/crates/core-engine/src/lib.rs)
+- [`aether-stream/crates/core-engine/src/auth.rs`](aether-stream/crates/core-engine/src/auth.rs)
+- [`aether-stream/apps/desktop/src/lib/CinematicLockScreen.svelte`](aether-stream/apps/desktop/src/lib/CinematicLockScreen.svelte)
 - [`aether-stream/apps/desktop/src/lib/CinematicDownloadCard.svelte`](aether-stream/apps/desktop/src/lib/CinematicDownloadCard.svelte)
 - [`aether-stream/docs/ROADMAP.md`](aether-stream/docs/ROADMAP.md)

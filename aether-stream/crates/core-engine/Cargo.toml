@@ -18,7 +18,8 @@ reqwest = { version = "0.12.23", default-features = false, features = [
   "deflate",
   "json",
 ] }
-rusqlite = { version = "0.37", features = ["bundled"] }
+# SQLCipher keeps queue metadata and the Argon2id verifier encrypted at rest.
+rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 tokio = { version = "1.47", features = [

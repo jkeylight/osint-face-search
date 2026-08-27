@@ -8,8 +8,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AuthMetadata {
+  id           Int    @id @default(1)
+  passwordHash String @map("password_hash")
+  createdAt    Int    @default(0) @map("created_at")
+  updatedAt    Int    @default(0) @map("updated_at")
+
+  @@map("auth_metadata")
+}
+
 // Timestamps are unix seconds so this schema stays byte-for-byte compatible
 // with the rusqlite migration used by the native engine.
+model MediaCapture {
+  id           String @id
+  pageOrigin   String @map("page_origin")
+  mediaUrl     String @map("media_url")
+  mediaKind    String @map("media_kind")
+  metadataJson String? @map("metadata_json")
+  createdAt    Int    @default(0) @map("created_at")
+
+  @@index([pageOrigin])
+  @@map("media_captures")
+}
+
 model Download {
   id             String   @id
   url            String

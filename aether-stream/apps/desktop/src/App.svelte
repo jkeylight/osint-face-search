@@ -1,9 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import CinematicLockScreen from "./lib/CinematicLockScreen.svelte";
   import CinematicDownloadCard from "./lib/CinematicDownloadCard.svelte";
   import type { DownloadSnapshot } from "./lib/types";
 
   type Filter = "all" | "active" | "complete";
+  type AuthStatus = {
+    configured: boolean;
+    unlocked: boolean;
+    biometric_available: boolean;
+    failed_attempts: number;
+    retry_after_seconds: number;
+  };
   type CoreEvent = {
     type: "state" | "chunk" | "progress" | "finished" | "failed";
     id: string;
@@ -16,6 +24,13 @@
     bytes_written?: number;
   };
 
+  let authReady = $state(false);
+  let isUnlocked = $state(false);
+  let authConfigured = $state(false);
+  let authBusy = $state(false);
+  let authError = $state("");
+  let biometricAvailable = $state(false);
+  let isPreview = $state(false);
   let activeFilter = $state<Filter>("all");
   let commandOpen = $state(false);
   let downloads = $state<DownloadSnapshot[]>([
@@ -109,6 +124,64 @@
     patchDownload(id, { status: "failed", speedBps: 0, etaSeconds: null });
   }
 
+  function applyAuthStatus(status: AuthStatus) {
+    authConfigured = status.configured;
+    biometricAvailable = status.biometric_available;
+    isUnlocked = status.unlocked;
+  }
+
+  async function submitVaultPassword(password: string, confirmation?: string) {
+    authError = "";
+    authBusy = true;
+    try {
+      if (isPreview) {
+        if (password.length < 4) throw new Error("Preview unlock requires four or more characters.");
+        if (!authConfigured && password !== confirmation) throw new Error("The preview passphrases do not match.");
+        isUnlocked = true;
+        return;
+      }
+
+      const { invoke } = await import("@tauri-apps/api/core");
+      const command = authConfigured ? "unlock_with_password" : "enroll_password";
+      const status = await invoke<AuthStatus>(command, { password });
+      applyAuthStatus(status);
+    } catch (error) {
+      authError = error instanceof Error ? error.message : "Vault authentication failed.";
+      throw error;
+    } finally {
+      authBusy = false;
+    }
+  }
+
+  async function submitBiometric() {
+    authError = "";
+    authBusy = true;
+    try {
+      if (isPreview) {
+        isUnlocked = true;
+        return;
+      }
+      const { invoke } = await import("@tauri-apps/api/core");
+      const status = await invoke<AuthStatus>("unlock_with_biometric");
+      applyAuthStatus(status);
+    } catch (error) {
+      authError = error instanceof Error ? error.message : "Biometric authentication failed.";
+      throw error;
+    } finally {
+      authBusy = false;
+    }
+  }
+
+  async function lockVault() {
+    if (isPreview) {
+      isUnlocked = false;
+      return;
+    }
+    const { invoke } = await import("@tauri-apps/api/core");
+    const status = await invoke<AuthStatus>("lock_app");
+    applyAuthStatus(status);
+  }
+
   function applyCoreEvent(event: CoreEvent) {
     const item = downloads.find((download) => download.id === event.id);
     if (!item) return;
@@ -150,13 +223,30 @@
   }
 
   onMount(() => {
+    const tauriWindow = "__TAURI_INTERNALS__" in window;
+    isPreview = !tauriWindow;
     let disposeBridge: (() => void) | undefined;
-    if ("__TAURI_INTERNALS__" in window) {
+
+    if (tauriWindow) {
+      void import("@tauri-apps/api/core").then(async ({ invoke }) => {
+        try {
+          const status = await invoke<AuthStatus>("auth_status");
+          applyAuthStatus(status);
+        } catch (error) {
+          authError = error instanceof Error ? error.message : "The secure vault could not be opened.";
+        } finally {
+          authReady = true;
+        }
+      });
       void import("@tauri-apps/api/event").then(async ({ listen }) => {
         disposeBridge = await listen<CoreEvent>("download://event", ({ payload }) => applyCoreEvent(payload));
       });
+    } else {
+      // A browser preview never touches the native vault. The lock screen is
+      // still shown so its interaction and visual hierarchy are reviewable.
+      authConfigured = true;
+      authReady = true;
     }
-
 
     const keydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -192,6 +282,24 @@
   />
 </svelte:head>
 
+{#if !authReady}
+  <div class="grid min-h-screen place-items-center bg-[#080a0f] text-cyan-100">
+    <div class="text-center">
+      <div class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-cyan-200/20 border-t-cyan-200"></div>
+      <div class="mt-4 font-mono text-[0.6rem] uppercase tracking-[0.24em] text-slate-600">sealing local vault</div>
+    </div>
+  </div>
+{:else if !isUnlocked}
+  <CinematicLockScreen
+    configured={authConfigured}
+    busy={authBusy}
+    error={authError}
+    biometricAvailable={authConfigured && biometricAvailable}
+    preview={isPreview}
+    onSubmit={submitVaultPassword}
+    onBiometric={submitBiometric}
+  />
+{:else}
 <div class="min-h-screen overflow-hidden bg-[#080a0f] text-[#f5f7fb] selection:bg-cyan-300/20">
   <div class="pointer-events-none fixed inset-0 opacity-70 [background-image:linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_75%)]"></div>
   <div class="pointer-events-none fixed -left-40 -top-44 h-[34rem] w-[34rem] rounded-full bg-cyan-400/10 blur-[130px]"></div>
@@ -274,7 +382,7 @@
       </div>
       <div class="bg-[#0d1017]/90 px-5 py-5 sm:px-6">
         <div class="font-mono text-[0.6rem] uppercase tracking-[0.2em] text-slate-600">Privacy state</div>
-        <div class="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-200"><span class="h-2 w-2 rounded-full bg-emerald-300"></span> Nothing leaves device</div>
+        <div class="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-200"><span class="h-2 w-2 rounded-full bg-emerald-300"></span> No telemetry emitted</div>
       </div>
     </section>
 
@@ -327,10 +435,14 @@
         <button class="flex w-full items-center justify-between rounded-xl bg-white/[0.06] px-4 py-3 text-left text-sm text-white" type="button" onclick={() => (commandOpen = false)}>
           <span>Start a new transfer</span><span class="font-mono text-[0.62rem] text-slate-600">↵</span>
         </button>
+        <button class="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-white/[0.04] hover:text-white" type="button" onclick={() => { commandOpen = false; void lockVault(); }}>
+          <span>Lock local vault</span><span class="font-mono text-[0.62rem] text-slate-600">L</span>
+        </button>
         <button class="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-white/[0.04] hover:text-white" type="button" onclick={() => (commandOpen = false)}>
           <span>Open privacy settings</span><span class="font-mono text-[0.62rem] text-slate-600">P</span>
         </button>
       </div>
     </div>
   </div>
+{/if}
 {/if}

@@ -1,4 +1,4 @@
-export type MediaKind = "direct" | "hls" | "dash";
+export type MediaKind = "direct" | "hls" | "dash" | "blob";
 
 export type MediaCandidate = {
   url: string;
@@ -13,6 +13,7 @@ const DASH = /\.mpd(?:$|[?#])/i;
 const MEDIA_EXTENSIONS = /\.(?:mp4|webm|mov|m4v|mp3|m4a|wav|ogg|flac)(?:$|[?#])/i;
 
 export function classifyMedia(url: string, mimeType = ""): MediaKind | null {
+  if (url.startsWith("blob:")) return "blob";
   if (HLS.test(url) || /application\/(?:vnd\.apple\.mpegurl|x-mpegurl)/i.test(mimeType)) return "hls";
   if (DASH.test(url) || /application\/dash\+xml/i.test(mimeType)) return "dash";
   if (MEDIA_EXTENSIONS.test(url) || /^video\//i.test(mimeType) || /^audio\//i.test(mimeType)) return "direct";
@@ -22,7 +23,7 @@ export function classifyMedia(url: string, mimeType = ""): MediaKind | null {
 export function normalizeCandidate(rawUrl: string, pageUrl: string, mimeType?: string): MediaCandidate | null {
   try {
     const url = new URL(rawUrl, pageUrl);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.protocol !== "https:" && url.protocol !== "http:" && url.protocol !== "blob:") return null;
     const kind = classifyMedia(url.href, mimeType);
     if (!kind) return null;
     return { url: url.href, kind, mimeType, pageUrl };

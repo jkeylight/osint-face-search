@@ -21,9 +21,18 @@ tauri-build = "2.4"
 [dependencies]
 aether-core.workspace = true
 anyhow.workspace = true
+keyring = { version = "3.6", default-features = false, features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "crypto-rust",
+] }
 serde.workspace = true
 serde_json.workspace = true
 tauri.workspace = true
+tauri-plugin-biometry = "0.3.0-rc.1"
 tokio.workspace = true
 tracing = "0.1"
 url = "2.5"
+uuid = { version = "1.18", features = ["v4"] }
+zeroize = "1.8"

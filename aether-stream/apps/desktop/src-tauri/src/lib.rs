@@ -1,21 +1,24 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use aether_core::{
-    DownloadConfig, DownloadEvent, DownloadManager, DownloadSpec, DownloadState, QueueStore,
+    AuthController, AuthStatus, DownloadConfig, DownloadEvent,
+    DownloadManager, DownloadSpec, DownloadState, QueueStore,
 };
+use keyring::Entry;
 use serde::Serialize;
-use tauri::{
-    async_runtime,
-    AppHandle,
-    Emitter,
-    Manager,
-    State,
-};
+use tauri::{async_runtime, AppHandle, Emitter, Manager, State, WebviewWindow};
+use tauri_plugin_biometry::{AuthOptions as BiometricOptions, BiometryExt};
 use url::Url;
+use uuid::Uuid;
+use zeroize::Zeroizing;
+
+const KEYCHAIN_SERVICE: &str = "com.aether.stream";
+const KEYCHAIN_DATABASE_KEY: &str = "sqlcipher-database-key";
 
 pub struct AppState {
     pub manager: DownloadManager,
     pub store: Arc<QueueStore>,
+    pub auth: Mutex<AuthController>,
 }
 
 #[derive(Debug, Serialize)]
@@ -23,6 +26,77 @@ pub struct SystemInfo {
     transport: &'static str,
     telemetry: bool,
     persistence: &'static str,
+    encryption: &'static str,
+}
+
+#[tauri::command]
+async fn auth_status(state: State<'_, AppState>) -> Result<AuthStatus, String> {
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    Ok(auth.status())
+}
+
+#[tauri::command]
+async fn enroll_password(
+    state: State<'_, AppState>,
+    password: String,
+) -> Result<AuthStatus, String> {
+    let password = Zeroizing::new(password);
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    let hash = auth
+        .enroll_password(password.as_str())
+        .map_err(|error| error.to_string())?;
+
+    if let Err(error) = state.store.set_password_hash(&hash) {
+        // Never leave an in-memory vault unlocked if its verifier did not make
+        // it into the encrypted database.
+        auth.lock();
+        return Err(error.to_string());
+    }
+    Ok(auth.status())
+}
+
+#[tauri::command]
+async fn unlock_with_password(
+    state: State<'_, AppState>,
+    password: String,
+) -> Result<AuthStatus, String> {
+    let password = Zeroizing::new(password);
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    auth.verify_password(password.as_str())
+        .map_err(|error| error.to_string())
+}
+
+/// The platform prompt is supplied by a Tauri plugin; the core receives only
+/// a success/failure result. Linux falls back to the passphrase path until a
+/// desktop-portal or PAM adapter is selected for the target distribution.
+#[tauri::command]
+async fn unlock_with_biometric(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+) -> Result<AuthStatus, String> {
+    let options = BiometricOptions {
+        allow_device_credential: Some(false),
+        cancel_title: Some("Keep vault locked".to_owned()),
+        fallback_title: None,
+        title: Some("Unlock AETHER-STREAM".to_owned()),
+        subtitle: Some("Authenticate to open your local vault".to_owned()),
+        confirmation_required: Some(false),
+    };
+    app.biometry()
+        .authenticate(window, "Unlock the AETHER-STREAM vault".to_owned(), options)
+        .map_err(|error| error.to_string())?;
+
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    auth.mark_biometric_authenticated()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn lock_app(state: State<'_, AppState>) -> Result<AuthStatus, String> {
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    auth.lock();
+    Ok(auth.status())
 }
 
 #[tauri::command]
@@ -31,6 +105,7 @@ async fn enqueue_download(
     url: String,
     destination: String,
 ) -> Result<String, String> {
+    ensure_unlocked(&state)?;
     let url = Url::parse(&url).map_err(|error| format!("invalid URL: {error}"))?;
     let spec = DownloadSpec::new(url, destination);
     let id = spec.id;
@@ -51,11 +126,21 @@ async fn enqueue_download(
 }
 
 #[tauri::command]
-fn system_info() -> SystemInfo {
+async fn system_info() -> SystemInfo {
     SystemInfo {
         transport: "HTTP/3 → HTTP/2 → HTTP/1.1",
         telemetry: false,
         persistence: "SQLite / rusqlite",
+        encryption: "SQLCipher + OS keychain",
+    }
+}
+
+fn ensure_unlocked(state: &State<'_, AppState>) -> Result<(), String> {
+    let mut auth = state.auth.lock().map_err(|_| "auth mutex poisoned".to_owned())?;
+    if auth.is_unlocked() {
+        Ok(())
+    } else {
+        Err("vault is locked".to_owned())
     }
 }
 
@@ -113,26 +198,75 @@ fn state_name(state: DownloadState) -> &'static str {
     }
 }
 
+fn load_or_create_database_key() -> Result<Zeroizing<Vec<u8>>, String> {
+    let entry = Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_DATABASE_KEY)
+        .map_err(|error| format!("keychain entry unavailable: {error}"))?;
+
+    match entry.get_secret() {
+        Ok(secret) if secret.len() == 32 => Ok(Zeroizing::new(secret)),
+        Ok(_) => Err("keychain database key has an invalid length".to_owned()),
+        Err(keyring::Error::NoEntry) => {
+            let first = Uuid::new_v4();
+            let second = Uuid::new_v4();
+            let mut secret = Zeroizing::new(Vec::with_capacity(32));
+            secret.extend_from_slice(first.as_bytes());
+            secret.extend_from_slice(second.as_bytes());
+            entry
+                .set_secret(&secret)
+                .map_err(|error| format!("could not persist database key: {error}"))?;
+            Ok(secret)
+        }
+        Err(error) => Err(format!("could not read database key: {error}")),
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_biometry::init())
         .setup(|app| {
             let data_dir = app
                 .path()
                 .app_data_dir()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
             let database = data_dir.join("aether.sqlite3");
+            let database_key = load_or_create_database_key()
+                .map_err(std::io::Error::other)?;
             let store = Arc::new(
-                QueueStore::open(database)
+                QueueStore::open(database, database_key.as_slice())
                     .map_err(|error| std::io::Error::other(error.to_string()))?,
             );
+            let password_hash = store
+                .password_hash()
+                .map_err(|error| std::io::Error::other(error.to_string()))?;
+            let mut auth = AuthController::from_hash(password_hash)
+                .map_err(|error| std::io::Error::other(error.to_string()))?;
+            let biometric_available = app
+                .biometry()
+                .status()
+                .map(|status| status.is_available)
+                .unwrap_or(false);
+            auth.set_biometric_available(biometric_available);
             let manager = DownloadManager::new(DownloadConfig::default())
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
 
             start_event_forwarder(app.handle(), &manager, store.clone());
-            app.manage(AppState { manager, store });
+            app.manage(AppState {
+                manager,
+                store,
+                auth: Mutex::new(auth),
+            });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![enqueue_download, system_info])
+        .invoke_handler(tauri::generate_handler![
+            auth_status,
+            enroll_password,
+            unlock_with_password,
+            unlock_with_biometric,
+            lock_app,
+            enqueue_download,
+            system_info
+        ])
         .run(tauri::generate_context!())
         .expect("error while running AETHER-STREAM");
 }

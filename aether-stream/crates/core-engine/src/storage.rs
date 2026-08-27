@@ -1,12 +1,14 @@
-//! SQLite persistence kept beside the Rust engine.
+//! SQLCipher-backed SQLite persistence kept beside the Rust engine.
 //!
 //! Prisma's schema in `packages/data/prisma/schema.prisma` is the shared
 //! contract for TypeScript tooling. Runtime queue writes stay here so the
 //! native engine does not cross a process boundary for every progress event.
+//! Production opens the database only after the Tauri shell obtains a 256-bit
+//! key from the platform keychain.
 
 use std::{path::Path, sync::Mutex};
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -16,11 +18,13 @@ pub enum StoreError {
     Sqlite(#[from] rusqlite::Error),
     #[error("filesystem error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("database key cannot be empty")]
+    EmptyKey,
     #[error("sqlite mutex was poisoned")]
     Poisoned,
 }
 
-/// Thread-safe, single-process queue store.
+/// Thread-safe, single-process SQLCipher store.
 ///
 /// The connection is intentionally serialized behind a mutex. Progress events
 /// are emitted from the hot path and should be coalesced by the caller before
@@ -30,7 +34,15 @@ pub struct QueueStore {
 }
 
 impl QueueStore {
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, StoreError> {
+    /// Open or create an encrypted SQLCipher database.
+    ///
+    /// `key` is supplied by the platform keychain adapter and is never written
+    /// to SQLite. The SQLCipher passphrase is a deterministic encoding of the
+    /// random key so no password or auth material is exposed to SQL text.
+    pub fn open(path: impl AsRef<Path>, key: &[u8]) -> Result<Self, StoreError> {
+        if key.is_empty() {
+            return Err(StoreError::EmptyKey);
+        }
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
@@ -39,6 +51,12 @@ impl QueueStore {
         }
 
         let connection = Connection::open(path)?;
+        let sqlcipher_passphrase = encode_key(key);
+        connection.pragma_update(None, "key", sqlcipher_passphrase)?;
+        connection.pragma_update(None, "cipher_memory_security", "ON")?;
+        // Forces SQLCipher to authenticate the key before migrations run. A
+        // wrong key fails here instead of producing a misleading empty schema.
+        connection.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))?;
         connection.pragma_update(None, "journal_mode", "WAL")?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
         connection.execute_batch(include_str!("../migrations/0001_init.sql"))?;
@@ -46,6 +64,30 @@ impl QueueStore {
         Ok(Self {
             connection: Mutex::new(connection),
         })
+    }
+
+    pub fn password_hash(&self) -> Result<Option<String>, StoreError> {
+        let connection = self.connection.lock().map_err(|_| StoreError::Poisoned)?;
+        connection
+            .query_row(
+                "SELECT password_hash FROM auth_metadata WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(StoreError::from)
+    }
+
+    pub fn set_password_hash(&self, password_hash: &str) -> Result<(), StoreError> {
+        let connection = self.connection.lock().map_err(|_| StoreError::Poisoned)?;
+        connection.execute(
+            "INSERT INTO auth_metadata (id, password_hash) VALUES (1, ?1)\
+             ON CONFLICT(id) DO UPDATE SET\
+               password_hash = excluded.password_hash,\
+               updated_at = unixepoch()",
+            params![password_hash],
+        )?;
+        Ok(())
     }
 
     pub fn insert_download(
@@ -127,4 +169,14 @@ impl QueueStore {
         )?;
         Ok(())
     }
+}
+
+fn encode_key(key: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(key.len() * 2);
+    for byte in key {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
 }

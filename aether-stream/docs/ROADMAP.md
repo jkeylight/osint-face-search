@@ -2,33 +2,38 @@
 
 The critical path is deliberately transport-first. The UI can be cinematic only when the state model is truthful under failure, pause, resume, and offline transitions.
 
-## Phase 1 — Core Engine
+## Phase 1 — Core Engine & Auth
 
-**Outcome:** a deterministic, local-first Rust engine that can safely pause, resume, verify, and assemble downloads.
+**Outcome:** a deterministic, local-first Rust engine that can safely pause, resume, verify, assemble, and deny access to an unopened vault.
 
 - [x] Cargo workspace and `aether-core` crate.
 - [x] HTTP/3-first reqwest client with HTTP/2/1.1 fallback.
 - [x] Range capability probe and 1–64 segment planner.
 - [x] Concurrent chunk workers with cancellation and progress events.
 - [x] Private staging directory and atomic final assembly.
-- [x] SQLite storage boundary via `rusqlite`.
+- [x] SQLCipher storage boundary via `rusqlite`.
+- [x] Argon2id PHC verifier, zeroized password input, lockout, and re-lock state.
+- [x] OS keychain boundary for the random SQLCipher database key.
+- [x] Explicit WebTorrent fallback package for user-supplied authorized magnets.
 - [ ] Durable checkpoint manifest and restart-safe byte-range resume.
 - [ ] Network empathy adapter: OS network interface / active-call signals, with explicit user override.
 - [ ] Criterion benchmarks for single-stream vs. segmented downloads across local test origins.
 
-**Exit gate:** fault-injection tests prove that a killed worker cannot publish a corrupt destination and that a non-range origin is streamed exactly once.
+**Exit gate:** fault-injection tests prove that a killed worker cannot publish a corrupt destination, a non-range origin is streamed exactly once, and a wrong vault credential never exposes queue metadata.
 
-## Phase 2 — Tauri UI
+## Phase 2 — Tauri UI & Lock Screen
 
-**Outcome:** a desktop and mobile-capable shell that projects engine state at 120 fps without inventing progress.
+**Outcome:** a desktop and mobile-capable shell that projects engine state at 120 fps without inventing progress and never renders private queue data before unlock.
 
 - [x] Tauri 2 + Svelte 5 + Tailwind workspace scaffold.
+- [x] Cinematic app lock screen with first-run passphrase enrollment and biometric trigger.
 - [x] Cinematic download card with progress ring, chunk equalizer, speed, and reduced-motion handling.
-- [x] Typed command/event bridge skeleton.
+- [x] Typed auth/download command and event bridge skeleton.
+- [x] Tauri biometry plugin path for Windows Hello, macOS Touch ID, iOS, and Android.
+- [ ] Linux desktop-portal/PAM biometric adapter.
 - [ ] Queue list, keyboard command palette, pause/resume/cancel actions.
 - [ ] Real bandwidth history graph backed by event timestamps rather than animation time.
 - [ ] Native save panel, notifications, haptic hooks on supported mobile targets.
-- [ ] OS keychain integration for optional queue encryption keys.
 - [ ] Accessibility audit: focus order, screen-reader labels, contrast, reduced motion.
 
 **Exit gate:** every visible byte, speed, ETA, and status is sourced from a core event or persisted record; no optimistic UI can claim a completed file.
@@ -39,7 +44,8 @@ The critical path is deliberately transport-first. The UI can be cinematic only 
 
 - [x] Manifest V3 package and TypeScript media observer scaffold.
 - [x] MutationObserver + history transition hooks for modern SPAs.
-- [x] HLS, DASH, direct media, and download-link candidate classification.
+- [x] HLS, DASH, direct media, `blob:`, and download-link candidate classification.
+- [ ] Page-context blob materialization with explicit user confirmation.
 - [ ] Authenticated native-messaging / Tauri protocol transport with per-install nonce.
 - [ ] Context-menu and media-overlay affordances with origin confirmation.
 - [ ] Test fixtures for React, Vue, Next, video.js, hls.js, and lazy-loaded media.

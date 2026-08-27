@@ -4,6 +4,7 @@
   "description": "Minimal capabilities for the AETHER-STREAM desktop window.",
   "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "biometry:default"
   ]
 }

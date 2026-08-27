@@ -10,7 +10,8 @@
     "check": "pnpm --filter @aether-stream/desktop check",
     "test:rust": "cargo test --workspace",
     "db:generate": "pnpm --filter @aether-stream/data prisma:generate",
-    "extension:build": "pnpm --filter @aether-stream/extension build"
+    "extension:build": "pnpm --filter @aether-stream/extension build",
+    "p2p:build": "pnpm --filter @aether-stream/p2p-adapter build"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

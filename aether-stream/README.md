@@ -7,9 +7,10 @@ A privacy-first, open-core download and data-ingestion engine designed to make t
 ## Vision
 
 - **No telemetry by default.** No analytics SDK, remote logging, or background account is required.
+- **Fortress local security.** The Tauri shell fails closed behind a cinematic lock screen; Argon2id verifies the local passphrase, SQLCipher encrypts queue/history/intercepted-media/auth metadata, and the SQLCipher key lives in the OS keychain.
 - **Rust-first transport.** The queue, HTTP client, segmentation policy, persistence boundary, and plugin host belong in native code.
 - **Protocol agility.** Attempt HTTP/3 over QUIC first, then fall back to the normal reqwest transport when the origin or network does not support it.
-- **Continuity.** Queue records are designed to be replicated as CRDT operations later; the local SQLite database remains authoritative while offline.
+- **Continuity.** Queue records are designed to be replicated as CRDT operations later; the local encrypted SQLite database remains authoritative while offline.
 - **Safe extensibility.** Post-processing runs behind an explicit WASM/WASI capability boundary instead of arbitrary native scripts.
 
 ## Repository layout
@@ -24,7 +25,8 @@ aether-stream/
 ├── crates/
 │   └── core-engine/             # DownloadManager and SQLite storage boundary
 ├── packages/
-│   └── data/prisma/             # Shared queue schema contract
+│   ├── data/prisma/             # Shared queue schema contract
+│   └── p2p-adapter/             # Explicit WebTorrent fallback boundary
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   └── ROADMAP.md
@@ -43,6 +45,8 @@ corepack enable
 pnpm install
 cargo fetch
 pnpm --filter @aether-stream/desktop check
+pnpm --filter @aether-stream/extension check
+pnpm --filter @aether-stream/p2p-adapter check
 cargo test -p aether-core
 ```
 
@@ -54,7 +58,7 @@ HTTP/3 in reqwest is an opt-in unstable surface at the time of this scaffold. Th
 pnpm --filter @aether-stream/desktop tauri dev
 ```
 
-The current UI ships with deterministic demo queue data so the visual system can be reviewed without a backend or network. The Tauri command/event bridge is scaffolded in `apps/desktop/src-tauri/src/lib.rs`; connecting a real queue screen is the next integration step.
+The current UI ships with deterministic demo queue data so the visual system can be reviewed without a backend or network. The browser preview intentionally opens at the lock screen; use any four characters to inspect the demo interface. A real Tauri launch reads the SQLCipher key from the OS keychain and requires a first-run Argon2id passphrase enrollment. The Tauri bridge uses the biometry plugin for supported macOS, Windows, iOS, and Android targets; Linux remains an explicit desktop-portal/PAM adapter boundary.
 
 ## Engineering contracts
 
@@ -69,5 +73,8 @@ The current UI ships with deterministic demo queue data so the visual system can
 - Mermaid system architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - Initialization commands: [`scripts/init-aether-stream.sh`](scripts/init-aether-stream.sh) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - HTTP/3 + multi-segment Rust engine: [`crates/core-engine/src/lib.rs`](crates/core-engine/src/lib.rs)
+- Svelte 5 cinematic app lock: [`apps/desktop/src/lib/CinematicLockScreen.svelte`](apps/desktop/src/lib/CinematicLockScreen.svelte)
 - Svelte 5 cinematic download card: [`apps/desktop/src/lib/CinematicDownloadCard.svelte`](apps/desktop/src/lib/CinematicDownloadCard.svelte)
+- Rust Argon2id auth controller: [`crates/core-engine/src/auth.rs`](crates/core-engine/src/auth.rs)
+- Explicit WebTorrent fallback boundary: [`packages/p2p-adapter/`](packages/p2p-adapter/)
 - Four-phase execution plan: [`docs/ROADMAP.md`](docs/ROADMAP.md)
